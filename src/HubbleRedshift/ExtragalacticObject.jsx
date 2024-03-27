@@ -38,7 +38,7 @@ function ExtragalacticObject(){
         uniform sampler2D noiseTexture;
         void main() {
             vUv = uv;
-            vNormal = normalize(normalMatrix*normal);
+            vNormal = normalize(normal);
 
             float surfaceOffset = 0.000001;
             vec2 normalUV = clamp(uv,0.2,0.9);
@@ -50,7 +50,7 @@ function ExtragalacticObject(){
 
 
             vec3 surface_vertex = position + (normalize(normal) * height);
-            //surface_vertex = position;
+            surface_vertex = position + normal*0.1;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(surface_vertex,1.0);
         }
     `;
@@ -58,9 +58,12 @@ function ExtragalacticObject(){
     const fragmentShader = `
         uniform sampler2D noiseTexture;
         varying vec2 vUv;
+        varying vec3 vNormal;
         void main() {
+            vec3 normal = normalize(vNormal);
             vec4 noise = texture2D(noiseTexture, vUv);
             gl_FragColor = vec4(vUv.x,vUv.x,vUv.x, 1.0);
+            gl_FragColor = vec4(normal.x, normal.y, normal.z, 1.0);
             //gl_FragColor = noise;
         }
     `;
@@ -71,7 +74,7 @@ function ExtragalacticObject(){
             noiseTexture: { value: noiseTexture }
         },
         vertexShader: vertexShader,
-        fragmentShader: fragmentShader
+        fragmentShader: fragmentShader,
     });
 
 
@@ -85,8 +88,10 @@ function ExtragalacticObject(){
     });
     
     const geometry = new THREE.SphereGeometry(1.0, 128, 128);
-    const sphere_geometry = XYSphere(1.0, 10, 10);
-    return <mesh ref={ref} material={material} geometry={sphere_geometry} ></mesh>
+    const sphere_geometry = XYSphere({radius: 2.0, widthSegments: 16, heightSegments: 16});
+    //console.log(sphere_geometry);
+    return <mesh geometry={sphere_geometry} material={material}></mesh>
+    //return <mesh ref={ref} material={material} geometry={geometry} ></mesh>
 
     
 }

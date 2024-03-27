@@ -5,6 +5,8 @@ import React from 'react';
 import { useRef } from 'react';
 
 
+
+
 import {InstancedCylinderAdv} from './InstancedCylinder';
 
 function insert_quad(p0,p1,p2,p3,n,uv,vertices,normals,uvs,elements,current)
@@ -79,7 +81,7 @@ function insert_quad(p0,p1,p2,p3,n,uv,vertices,normals,uvs,elements,current)
 
 function XYSphere({ radius, widthSegments, heightSegments}){
     
-    let grid_area = 2*(radius*radius);
+    let grid_area = 2*(radius);
 
     let dx = grid_area/widthSegments;
     let dz = grid_area/heightSegments;
@@ -100,6 +102,7 @@ function XYSphere({ radius, widthSegments, heightSegments}){
     var center = new THREE.Vector3(0,0,0);
 
 
+
     for(var i = 0; i < widthSegments; i++)
     {
 
@@ -109,9 +112,6 @@ function XYSphere({ radius, widthSegments, heightSegments}){
 
         for(var j = 0; j < heightSegments; j++)
         {
-
-
-            
 
             let z = j*dz - radius;
             let zp = (j+1)*dz - radius;
@@ -151,10 +151,10 @@ function XYSphere({ radius, widthSegments, heightSegments}){
             }
             
 
-            p0.set(x,y,z);
-            p1.set(xp,ypp,z);
-            p2.set(xp,yp,zp);
-            p3.set(x,yppp,zp);
+            p0.set(-x,y,z);
+            p1.set(-xp,ypp,z);
+            p2.set(-xp,yp,zp);
+            p3.set(-x,yppp,zp);
             
 
             //console.log(p0,p1,p2,p3);
@@ -162,17 +162,20 @@ function XYSphere({ radius, widthSegments, heightSegments}){
             //p1.set(xp,zp2,y);
             // p2.set(xp,yp,sn2);
             // p3.set(x,yp,sn);
-            
             // console.log(p0,p1,p2,p3);
 
-            insert_quad(p0,p1,p2,p3,0,[0,0,1,0,1,1,0,1],vertices,normals,uvs,elements,elementPack)
+            var n = p1.clone().sub(p0).cross(p3.clone().sub(p0)).normalize();
+
+            insert_quad(p0,p1,p2,p3,n,[0,0,1,0,1,1,0,1],vertices,normals,uvs,elements,elementPack)
 
             p0.set(x,-y,z);
             p1.set(xp,-ypp,z);
             p2.set(xp,-yp,zp);
             p3.set(x,-yppp,zp);
 
-            insert_quad(p0,p1,p2,p3,0,[0,0,1,0,1,1,0,1],vertices,normals,uvs,elements,elementPack)
+            n = p1.clone().sub(p0).cross(p3.clone().sub(p0)).normalize()
+
+            insert_quad(p0,p1,p2,p3,n,[0,0,1,0,1,1,0,1],vertices,normals,uvs,elements,elementPack)
 
         }
     }
@@ -185,16 +188,17 @@ function XYSphere({ radius, widthSegments, heightSegments}){
 
 
     return bufferGeometry;
-    // return (
-    //     <group>
-    //     <mesh geometry={bufferGeometry} material={new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })}>
-    //     </mesh>
-    //     {/* <InstancedCylinderAdv bottom={new THREE.Vector3(-radius,0,-radius)} top={new THREE.Vector3(radius,0,radius)} xdivisions={10} ydivisions={10}></InstancedCylinderAdv> */}
-    //     </group>
-    // );
+    return (
+        <group>
+        <mesh geometry={bufferGeometry} material={new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })}>
+        </mesh>
+        <InstancedCylinderAdv bottom={new THREE.Vector3(-radius,0,-radius)} top={new THREE.Vector3(radius,0,radius)} xdivisions={10} ydivisions={10}></InstancedCylinderAdv>
+        </group>
+    );
 
 
 
 }
+
 
 export {XYSphere};
