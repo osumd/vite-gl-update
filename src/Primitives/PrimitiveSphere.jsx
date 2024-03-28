@@ -102,7 +102,6 @@ function XYSphere({ radius, widthSegments, heightSegments}){
     var center = new THREE.Vector3(0,0,0);
 
 
-
     for(var i = 0; i < widthSegments; i++)
     {
 
@@ -135,16 +134,16 @@ function XYSphere({ radius, widthSegments, heightSegments}){
             {
                 yp = Math.sqrt(  radius - (xp*xp) - (zp*zp) );
             }
-            if(xp*xp + z*z < radius)
+            if((xp*xp + z*z) < radius)
             {
                 ypp = Math.sqrt( radius - (xp*xp) - (z*z) );
             }
-            if(x*x + zp*zp < radius)
+            if((x*x + zp*zp) < radius)
             {
                 yppp = Math.sqrt(radius - (x*x) - (zp*zp) );
             }
 
-            let eps = 0.04;
+            let eps = 0.0;
             if(y <= eps && yp <= eps && ypp <= eps && yppp <= eps)
             {
                 continue;

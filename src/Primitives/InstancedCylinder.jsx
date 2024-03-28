@@ -5,9 +5,6 @@ import { ShaderMaterial, SphereGeometry } from 'three';
 import React from 'react';
 import { useRef, useEffect } from 'react';
 
-
-
-
 function InstancedCylinder({bottom, top, divisions})
 {
         //console.log(bottom,top,divisions);

@@ -1,18 +1,19 @@
 
-import React from 'react';
+import React,{useRef,useEffect} from 'react';
 import * as THREE from 'three';
 
 import { Dequeue } from '../DataStructures/Dequeue';
-
 import { XYSphere } from '../Primitives/PrimitiveSphere';
+import { OpenCylinder } from '../Primitives/PrimitiveCylinder';
 
 class MeshNode {
     constructor(position, normal, uv, vertex_id){
+
         this.vertex_id = vertex_id;
         this.position = position;
         this.normal = normal;
         this.uv = uv;
-        this.neighbors = [];
+        this.neighbors = new Array();
     }
 }
 
@@ -24,14 +25,31 @@ class MeshGraph extends React.Component {
         super();
         this.nodes = [];
         this.nodes_list = {};
+
     }
 
+    validate_no_duplicate_vertices()
+    {
+        let vertex_set = new Set();
+        for(let node of this.nodes)
+        {
+            if(vertex_set.has(node.position.toArray().toString()))
+            {
+                console.log("duplicate vertex id");
+                return false;
+            }
+            vertex_set.add(node.position.toArray().toString());
+        }
+
+        return true;
+    }
 
     add_node(position, normal, uv, vertex_id)
     {
 
         if(this.nodes_list[vertex_id] != undefined)
         {
+            //console.log("duplicate");
             return;
         }
 
@@ -47,8 +65,10 @@ class MeshGraph extends React.Component {
 
         if(node1 == undefined || node2 == undefined)
         {
+            //console.log("node not found");
             return;
         }
+
 
         node1.neighbors.push(node2);
         node2.neighbors.push(node1);
@@ -127,8 +147,6 @@ class MeshGraph extends React.Component {
 
     build_triangles(vertices, elements, normals, uvs, elementPack)
     {
-        
-        console.log(this.nodes.length);
         let Q = new Dequeue();
 
         let visited = {};
@@ -136,6 +154,8 @@ class MeshGraph extends React.Component {
 
         let max_iter = 10000;
         let k = 0;
+
+        let num_tris = 0;
         
         while(!Q.empty() && k < max_iter)
         {
@@ -150,65 +170,56 @@ class MeshGraph extends React.Component {
 
             visited[node.vertex_id] = true;
 
-            let triangular_neighbors = [];
+            console.log(node.neighbors.length);
+
+            let nodal_neighbors = {};
+            let nodal_neighbor_array = [];
+
 
             for(let neighbor of node.neighbors)
             {
                 if(visited[neighbor.vertex_id] == undefined)
                 {
-                    triangular_neighbors.push(neighbor);
-                    
                     Q.push_front(neighbor);
+                    nodal_neighbors[neighbor] = neighbor;
+                    nodal_neighbor_array.push(neighbor);
                 }
-            }   
-            
-            if(triangular_neighbors.length >= 3)
-            {
-                let n0 = node;
-                let n1 = triangular_neighbors[0];
-                let n2 = triangular_neighbors[1];
-                let n3 = triangular_neighbors[2];
 
-                let v0 = n0.position;
-                let v1 = n1.position;
-                let v2 = n2.position;
-                let v3 = n3.position;
-
-                let n = v1.clone().sub(v0).cross(v2.clone().sub(v0)).normalize();
                 
-                this.insert_triangle(v0,v1,v2,n,[0,0,1,0,1,1],vertices, elements, normals, uvs, elementPack);
-                this.insert_triangle(v0,v3,v2,n,[0,0,1,0,1,1],vertices, elements, normals, uvs, elementPack);     
             }
 
-            // for(var i = 0; i+2 < triangular_neighbors.length; i+=2)
-            // {
-            //     let n0 = node;
-            //     let n1 = triangular_neighbors[i];
-            //     let n2 = triangular_neighbors[i+1];
 
-            //     let v0 = n0.position;
-            //     let v1 = n1.position;
-            //     let v2 = n2.position;
+            for(let neighbor of nodal_neighbor_array)
+            {
 
-            //     let n = v1.clone().sub(v0).cross(v2.clone().sub(v0)).normalize();
-                
-            //     this.insert_triangle(v0,v1,v2,n,[0,0,1,0,1,1],vertices, elements, normals, uvs, elementPack);
+                for(let adj_neighbor of neighbor.neighbors)
+                {
+                    if(nodal_neighbors[adj_neighbor] != undefined)
+                    {
+                        let p0 = node.position;
+                        let p1 = neighbor.position;
+                        let p2 = adj_neighbor.position;
 
-            // }
+                        let n = p1.clone().sub(p0).cross(p2.clone().sub(p0)).normalize();
+                        let uv = [node.uv.x, node.uv.y, neighbor.uv.x, neighbor.uv.y, adj_neighbor.uv.x, adj_neighbor.uv.y];
+                        num_tris++;
+                        this.insert_triangle(p0,p1,p2,n,uv,vertices, elements, normals, uvs, elementPack);
+                    }
+                }
 
-            
 
-
+            }
         }
 
 
         console.log("k: " + k.toString());
+        console.log("num_tris: " + num_tris.toString());
     }
 
     generate_mesh()
     {
 
-        let num_tris = this.nodes.length - 2;
+        let num_tris = this.nodes.length*20;
 
         let vertices = new Float32Array(num_tris * 9);
         let elements = new Uint16Array(num_tris * 3);
@@ -218,33 +229,76 @@ class MeshGraph extends React.Component {
         let elementPack = [0,0];
 
         this.build_triangles(vertices, elements, normals, uvs, elementPack);
-        console.log(vertices);
+        
         let bufferGeometry = new THREE.BufferGeometry();
         bufferGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
         bufferGeometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
         bufferGeometry.setIndex(new THREE.BufferAttribute(elements, 1));
 
+        let debug_geometry = new XYSphere({radius:1, widthSegments: 10, heightSegments: 10  });
+        let debug_cylinder = new OpenCylinder();
+        let instance_debug = new THREE.InstancedMesh(debug_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.nodes.length);
+        let instance_cylinder = new THREE.InstancedMesh(debug_cylinder, new THREE.MeshBasicMaterial({ color: 0xffAA00, side: THREE.DoubleSide }), this.nodes.length*100);
 
-        let baseDebugGeometry = XYSphere({radius:0.3, widthSegments: 10, heightSegments: 10});
-        let instanceMesh = new THREE.InstancedMesh(baseDebugGeometry, new THREE.MeshBasicMaterial({color: 0xff0000}), this.nodes.length);
-        let matrix = new THREE.Matrix4();
+        let debug_visited = {}
+
+        let edge_instance = 0;
 
         for(let i = 0; i < this.nodes.length; i++)
         {
+
             let node = this.nodes[i];
-            matrix.setPosition(node.position);
-            instanceMesh.setMatrixAt(i, matrix);
+            let m = new THREE.Matrix4();
+            m.setPosition(node.position);
+            m.scale(new THREE.Vector3(0.05,0.05,0.05));
+            instance_debug.setMatrixAt(i, m);
+
+            for(let n = 0; n < node.neighbors.length; n++)
+            {
+                //console.log(node.neighbors.length);
+                let neighbor = node.neighbors[n];
+                let edge_desc = node.vertex_id + "-" + neighbor.vertex_id;
+
+                if(debug_visited[edge_desc] == undefined)
+                {
+                    debug_visited[edge_desc] = true;
+
+
+                    let axis = neighbor.position.clone().sub(node.position);
+                    let al = axis.length();
+                    let axis_norm = axis.clone().cross(new THREE.Vector3(0,1,0)).normalize();
+                    let angle = Math.acos(new THREE.Vector3(0,1,0).dot(axis)/al);
+                    axis.normalize();
+
+                    //how to compose my scale position and rotation? 
+                    let quaternion = new THREE.Quaternion().setFromAxisAngle(axis_norm, -angle);
+                    let mc = new THREE.Matrix4().compose(node.position, quaternion, new THREE.Vector3(1, al, 1))
+
+                    //mc.scale(new THREE.Vector3(0.2,0.2,0.2));
+                    instance_cylinder.setMatrixAt(edge_instance, mc);
+                    edge_instance++;
+                }
+
+
+            }
+
+
         }
 
+        instance_debug.instanceMatrix.needsUpdate = true;
+        instance_cylinder.instanceMatrix.needsUpdate = true;
+
         return (
-        <group>
+        <group ref={this.groupRef}>
             <mesh geometry={bufferGeometry} material={new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })} ></mesh>
-            <primitive object={instanceMesh}></primitive>
+            <primitive object={instance_debug}></primitive>
+            <primitive object={instance_cylinder}></primitive>
         </group>
         );
 
     }
+
 
     render() {
     return (
@@ -252,6 +306,47 @@ class MeshGraph extends React.Component {
         </div>
     );
     }
+}
+
+
+function debugSpheres(graph) {
+
+    let instanceCount = graph.nodes.length;
+    const meshRef = useRef();
+
+
+    let baseDebugGeometry = XYSphere({radius:1, widthSegments: 10, heightSegments: 10});
+    
+    useEffect(() => {   
+        if(meshRef.current)
+        {
+
+            console.log(graph, graph.nodes.length)
+            
+            for(let i = 0; i < graph.nodes.length; i++)
+            {
+                let matrix = new THREE.Matrix4();
+                let node = graph.nodes[i];
+                matrix.setPosition(node.position);
+                
+                //set scale of object
+                matrix.scale(new THREE.Vector3(0.05,0.05,0.05));
+                meshRef.current.setMatrixAt(i, matrix);
+                //console.log(meshRef);
+            }
+    
+            meshRef.current.instanceMatrix.needsUpdate = true;
+    
+        } 
+
+    }, [graph.nodes]);
+    
+
+    return (
+        <instancedMesh ref={meshRef} args={[baseDebugGeometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), instanceCount]}>
+        </instancedMesh>
+    );
+
 }
 
 export {MeshGraph};

@@ -35,12 +35,13 @@ class HubbleRedshift extends React.Component {
                 <Canvas>
 
                     {/* <ExtragalacticObject></ExtragalacticObject> */}
-                    {/* <XYSphere radius={1.0} widthSegments={10} heightSegments={10}></XYSphere> */}
+                    {/* <mesh geometry={XYSphere({radius: 1.0, widthSegments:10,heightSegments:10})}></mesh> */}
                     {}
                     {/* <InstancedCylinder bottom={new THREE.Vector3(5,0.0,0)} top={new THREE.Vector3(8,3,-10)} divisions={5}></InstancedCylinder> */}
                     {/* <mesh position={new THREE.Vector3(-5,3,-10)}><boxGeometry></boxGeometry></mesh> */}
                     <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh>
                     <OrbitControls></OrbitControls>
+                    
                     <XYSphereGraph radius={1.0} widthSegments={10} heightSegments={10}></XYSphereGraph>
                 </Canvas>
 
