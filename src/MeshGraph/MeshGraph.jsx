@@ -181,9 +181,11 @@ class MeshGraph extends React.Component {
                 if(visited[neighbor.vertex_id] == undefined)
                 {
                     Q.push_front(neighbor);
-                    nodal_neighbors[neighbor] = neighbor;
-                    nodal_neighbor_array.push(neighbor);
+                    
                 }
+
+                nodal_neighbors[neighbor] = neighbor;
+                nodal_neighbor_array.push(neighbor);
 
                 
             }
@@ -219,7 +221,7 @@ class MeshGraph extends React.Component {
     generate_mesh()
     {
 
-        let num_tris = this.nodes.length*20;
+        let num_tris = this.nodes.length*13;
 
         let vertices = new Float32Array(num_tris * 9);
         let elements = new Uint16Array(num_tris * 3);
