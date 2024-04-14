@@ -7,6 +7,8 @@ import { useRef } from 'react';
 import { XYSphere } from '../Primitives/PrimitiveSphere';
 
 
+import {OpenCylinder} from '../Primitives/PrimitiveCylinder';
+
 
 function ExtragalacticObject(){
     const ref = useRef();
@@ -68,6 +70,12 @@ function ExtragalacticObject(){
         }
     `;
 
+    // paints normals of mesh object.
+    function paintNormals()
+    {
+
+    }
+
     const noiseTexture = createNoiseTexture(64);
     const material = new ShaderMaterial({
         uniforms: {
@@ -79,16 +87,16 @@ function ExtragalacticObject(){
 
 
 
-
-
-    
     useFrame((state,delta) => {
         //ref.current.rotation.x += 0.01;
         //ref.current.rotation.y += 0.01;
     });
     
     const geometry = new THREE.SphereGeometry(1.0, 128, 128);
+
     const sphere_geometry = XYSphere({radius: 2.0, widthSegments: 16, heightSegments: 16});
+
+
     //console.log(sphere_geometry);
     return <mesh geometry={sphere_geometry} material={material}></mesh>
     //return <mesh ref={ref} material={material} geometry={geometry} ></mesh>

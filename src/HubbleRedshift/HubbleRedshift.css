@@ -1,0 +1,18 @@
+.canvas {
+    width: 600px;
+    height: 700px;
+    margin: 0 auto;
+}
+
+.sequence_player
+{
+    width: 100%;
+    height: 50px;
+    margin: 0 auto;
+}
+
+.sequence_player_item
+{
+    width: 50%;
+    padding-right:50%;
+}

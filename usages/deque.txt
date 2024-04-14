@@ -1,0 +1,12 @@
+        let Q = new Dequeue();
+        Q.push_front(1);
+        Q.pop_front();
+        Q.push_front(2);
+        Q.push_front(3);
+        
+        Q.pop_front();
+        
+        Q.pop_front();
+        console.log(Q.empty());
+        Q.pop_front();
+        Q.pop_front();

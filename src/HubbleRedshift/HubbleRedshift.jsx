@@ -1,54 +1,75 @@
-import React from 'react';
-import { Canvas } from 'react-three-fiber';
-import { OrbitControls } from '@react-three/drei';
-import * as THREE from 'three';
+//react
+import React, {useRef} from 'react';
 
-import ExtragalacticObject from './ExtragalacticObject';
-import {InstancedCylinder} from '../Primitives/InstancedCylinder';
-import { XYSphere } from '../Primitives/PrimitiveSphere.jsx';
+import * as THREE from 'three';
+import { Canvas } from 'react-three-fiber';
+
+//Imported cameras
+import { PerspectiveCamera } from '@react-three/drei';
+
+// Complete object uses noise to displace surface badly
+import ExtragalacticObject from '../../CompleteObjects/ExtragalacticObject.jsx';
+
+import {InstancedCylinder} from '../../Primitives/InstancedCylinder.jsx';
+import { XYSphere } from '../../Primitives/PrimitiveSphere.jsx';
 import { XYSphereGraph } from '../MeshGraph/SphereGraph';
 import { Dequeue } from '../DataStructures/Dequeue.jsx';
 
+//Import animator
+import {EventSystem, EventAnimation} from '../EventAnimation/EventAnimation.jsx'
 
-class HubbleRedshift extends React.Component {
+//import instance thing
+import InstanceMachine from '../../Primitives/InstanceMachine.jsx';
 
-    render() {
+import './HubbleRedshift.css'
 
-        let Q = new Dequeue();
-        Q.push_front(1);
-        Q.pop_front();
-        Q.push_front(2);
-        Q.push_front(3);
-        
-        Q.pop_front();
-        
-        Q.pop_front();
-        console.log(Q.empty());
-        Q.pop_front();
-        Q.pop_front();
-        
+
+function useRefCollection()
+{
+  const camera = useRef();
+  const eventSystem = useRef();
+  const instanceMachine = useRef();
+  // Add more refs as needed
+
+  // Return an object containing all the refs
+  return {
+    camera,
+    eventSystem,
+    instanceMachine
+    // Add more refs as needed
+  };
+}
+
+
+function HubbleRedshift ()
+{
+    
+        let scene_context = useRefCollection();
 
         return (
-            <div>
+            <div >
                 <h1>Welcome to the Hubble Redshift Page</h1>
-                <p>This is a basic webpage setup in React.</p>
-                <Canvas>
 
-                    {/* <ExtragalacticObject></ExtragalacticObject> */}
-                    {/* <mesh geometry={XYSphere({radius: 1.0, widthSegments:10,heightSegments:10})}></mesh> */}
-                    {}
-                    {/* <InstancedCylinder bottom={new THREE.Vector3(5,0.0,0)} top={new THREE.Vector3(8,3,-10)} divisions={5}></InstancedCylinder> */}
-                    {/* <mesh position={new THREE.Vector3(-5,3,-10)}><boxGeometry></boxGeometry></mesh> */}
-                    <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh>
-                    <OrbitControls></OrbitControls>
+                
+                    <Canvas style={{width:"600px", height: "600px"}}>
+                        
+                        <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh>
+                        
+                        
+                        <PerspectiveCamera makeDefault ref={scene_context.camera} position={[0,0,3]} ></PerspectiveCamera>
+                        <EventAnimation {...scene_context}></EventAnimation>
+
+                    </Canvas>
+
+                    <EventSystem ref={scene_context.eventSystem}></EventSystem>
+
                     
-                    <XYSphereGraph radius={1.0} widthSegments={10} heightSegments={10}></XYSphereGraph>
-                </Canvas>
 
-                {Q.render()}
+                    
             </div>
+
+            
         );
-    }
 }
 
 export default HubbleRedshift;

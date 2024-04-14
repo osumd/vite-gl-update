@@ -50,10 +50,6 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
             let ypp = 0.0;
             let yppp = 0.0;
 
-            // yppp = Math.sqrt(Math.abs( radius - (x*x) - (zp*zp) ));
-            // ypp = Math.sqrt(Math.abs(radius - (xp*xp) - (z*z) ));
-            // yp = Math.sqrt( Math.abs( radius - (xp*xp) - (zp*zp) ));
-            // y = Math.sqrt( Math.abs( radius - (x*x) - (z*z) ));
 
             if((x*x + z*z) < (radius))
             {
@@ -78,18 +74,15 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
                 //continue;
             }
             
+            if(y == 0)
+            {
+                //continue;
+            }
 
             p0.set(-x,y,z);
             p1.set(-xp,ypp,z);
             p2.set(-xp,yp,zp);
             p3.set(-x,yppp,zp);
-
-            //console.log(p0,p1,p2,p3);
-            //p2.set(xp,zp,yp);
-            //p1.set(xp,zp2,y);
-            // p2.set(xp,yp,sn2);
-            // p3.set(x,yp,sn);
-            // console.log(p0,p1,p2,p3);
 
 
             var n = p1.clone().sub(p0).cross(p3.clone().sub(p0)).normalize();
@@ -102,23 +95,25 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
             meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i+1).toString()},${(j).toString()}}`);
             meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i).toString()},${(j+1).toString()}}`);
             
-
             p0.set(x,-y,z);
             p1.set(xp,-ypp,z);
             p2.set(xp,-yp,zp);
             p3.set(x,-yppp,zp);
 
-
-            meshGraph.add_node(p0.clone(),n.clone(),new THREE.Vector2(0,0),`{${(i).toString()},${(j).toString()}}`);
-            meshGraph.add_node(p1.clone(),n.clone(),new THREE.Vector2(1,0),`{${(i+1).toString()},${(j).toString()}}`);
-            meshGraph.add_node(p2.clone(),n.clone(),new THREE.Vector2(1,1),`{${(i+1).toString()},${(j+1).toString()}}`);
-            meshGraph.add_node(p3.clone(),n.clone(),new THREE.Vector2(0,1),`{${(i).toString()},${(j+1).toString()}}`);
+            meshGraph.add_node(p0.clone(),n.clone(),new THREE.Vector2(0,0),   "-" + `{${(i).toString()}, ${(j).toString()}}`   );
+            meshGraph.add_node(p1.clone(),n.clone(),new THREE.Vector2(1,0), "-" + `{${(i+1).toString()},${(j).toString()}}`);
+            meshGraph.add_node(p2.clone(),n.clone(),new THREE.Vector2(1,1), "-" + `{${(i+1).toString()},${(j+1).toString()}}`);
+            meshGraph.add_node(p3.clone(),n.clone(),new THREE.Vector2(0,1), "-" + `{${(i).toString()},${(j+1).toString()}}`);
             
-            // n = p1.clone().sub(p0).cross(p3.clone().sub(p0)).normalize()
-            // meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i+1).toString()},${(j).toString()}}`);
-            // meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i).toString()},${(j+1).toString()}}`);
+            meshGraph.add_edge( "-"+`{${(i).toString()},${(j).toString()}}`,"-"+`{${(i+1).toString()},${(j).toString()}}`);
+            meshGraph.add_edge("-"+`{${(i).toString()},${(j).toString()}}`,"-"+`{${(i).toString()},${(j+1).toString()}}`);
 
-            // insert_quad(p0,p1,p2,p3,n,[0,0,1,0,1,1,0,1],vertices,normals,uvs,elements,elementPack)
+            if( i == 0 || i == widthSegments-1 || j == 0 || j == heightSegments-1)
+            {
+
+                //meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`, "-" + `{${(i).toString()},${(j).toString()}}`);
+            }
+
 
         }
     }

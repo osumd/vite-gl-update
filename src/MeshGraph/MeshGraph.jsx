@@ -3,8 +3,11 @@ import React,{useRef,useEffect} from 'react';
 import * as THREE from 'three';
 
 import { Dequeue } from '../DataStructures/Dequeue';
-import { XYSphere } from '../Primitives/PrimitiveSphere';
-import { OpenCylinder } from '../Primitives/PrimitiveCylinder';
+import { XYSphere } from '../../Primitives/PrimitiveSphere';
+
+import { OpenCylinder } from '../../Primitives/PrimitiveCylinder';
+
+import { Text } from '@react-three/drei';
 
 class MeshNode {
     constructor(position, normal, uv, vertex_id){
@@ -17,15 +20,17 @@ class MeshNode {
     }
 }
 
-
+//mesh graph
 class MeshGraph extends React.Component {
 
 
     constructor(){
         super();
-        this.nodes = [];
-        this.nodes_list = {};
 
+        ///nodes mesh node
+        this.nodes = [];
+        //hash array of mesh nodes
+        this.nodes_list = {};
     }
 
     validate_no_duplicate_vertices()
@@ -145,6 +150,86 @@ class MeshGraph extends React.Component {
         elementPack[1] = j + 3;
     }
 
+    //mini algorithm which makes the mesh from the graph
+    non_sharing_neighbor(node, visited, Q, vertices, elements, normals, uvs, elementPack)
+    {
+
+        let nodal_neighbors = {};
+        let nodal_neighbor_array = [];
+
+        for(let neighbor of node.neighbors)
+        {
+            if(visited[neighbor.vertex_id] == undefined)
+            {
+                Q.push_front(neighbor);
+                
+            }
+
+            nodal_neighbors[neighbor] = neighbor;
+
+            nodal_neighbor_array.push(neighbor);
+
+            
+        }
+
+       
+
+        for(let neighbor of nodal_neighbor_array)
+        {
+            for(let adj_neighbor of neighbor.neighbors)
+            {
+                if(nodal_neighbors[adj_neighbor] != undefined)
+                {
+                    let p0 = node.position;
+                    let p1 = neighbor.position;
+                    let p2 = adj_neighbor.position;
+
+                    let n = p1.clone().sub(p0).cross(p2.clone().sub(p0)).normalize();
+                    let uv = [node.uv.x, node.uv.y, neighbor.uv.x, neighbor.uv.y, adj_neighbor.uv.x, adj_neighbor.uv.y];
+                    this.insert_triangle(p0,p1,p2,n,uv,vertices, elements, normals, uvs, elementPack);
+                }
+            }
+        }
+
+
+
+    }
+
+
+    choose_neighbors(node, visited, Q, vertices, elements, normals, uvs, elementPack)
+    {
+
+
+        let p0 = node.position;
+
+        //value for whether the correct index is found
+        
+        let nodal_neighbors = {};
+        let nodal_neighbor_array = [];
+        let triangles = {};
+
+        for(let neighbor of node.neighbors)
+        {
+            if(visited[neighbor.vertex_id] == undefined)
+            {
+                Q.push_front(neighbor);
+                
+            }  
+            
+            console.log(neighbor.vertex_id);
+            
+            nodal_neighbors[neighbor.vertex_id] = neighbor.vertex_id;
+
+            nodal_neighbor_array.push(neighbor);
+
+
+        
+        }
+
+
+
+    }
+
     build_triangles(vertices, elements, normals, uvs, elementPack)
     {
         let Q = new Dequeue();
@@ -155,8 +240,6 @@ class MeshGraph extends React.Component {
         let max_iter = 10000;
         let k = 0;
 
-        let num_tris = 0;
-        
         while(!Q.empty() && k < max_iter)
         {
 
@@ -170,78 +253,32 @@ class MeshGraph extends React.Component {
 
             visited[node.vertex_id] = true;
 
-            console.log(node.neighbors.length);
 
             let nodal_neighbors = {};
             let nodal_neighbor_array = [];
 
-
-            for(let neighbor of node.neighbors)
-            {
-                if(visited[neighbor.vertex_id] == undefined)
-                {
-                    Q.push_front(neighbor);
-                    
-                }
-
-                nodal_neighbors[neighbor] = neighbor;
-                nodal_neighbor_array.push(neighbor);
-
-                
-            }
+            //this.non_sharing_neighbor(node, visited, Q, vertices, elements, normals, uvs, elementPack);
+            this.choose_neighbors(node, visited, Q, vertices, elements, normals, uvs, elementPack);
 
 
-            for(let neighbor of nodal_neighbor_array)
-            {
-
-                for(let adj_neighbor of neighbor.neighbors)
-                {
-                    if(nodal_neighbors[adj_neighbor] != undefined)
-                    {
-                        let p0 = node.position;
-                        let p1 = neighbor.position;
-                        let p2 = adj_neighbor.position;
-
-                        let n = p1.clone().sub(p0).cross(p2.clone().sub(p0)).normalize();
-                        let uv = [node.uv.x, node.uv.y, neighbor.uv.x, neighbor.uv.y, adj_neighbor.uv.x, adj_neighbor.uv.y];
-                        num_tris++;
-                        this.insert_triangle(p0,p1,p2,n,uv,vertices, elements, normals, uvs, elementPack);
-                    }
-                }
 
 
-            }
         }
 
 
-        console.log("k: " + k.toString());
-        console.log("num_tris: " + num_tris.toString());
+        /* console.log("k: " + k.toString());
+        console.log("num_tris: " + num_tris.toString()); */
     }
 
-    generate_mesh()
+
+    generate_mesh_debug_geometry()
     {
-
-        let num_tris = this.nodes.length*13;
-
-        let vertices = new Float32Array(num_tris * 9);
-        let elements = new Uint16Array(num_tris * 3);
-        let normals = new Float32Array(num_tris * 9);
-        let uvs = new Float32Array(num_tris * 6);
-
-        let elementPack = [0,0];
-
-        this.build_triangles(vertices, elements, normals, uvs, elementPack);
-        
-        let bufferGeometry = new THREE.BufferGeometry();
-        bufferGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-        bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-        bufferGeometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-        bufferGeometry.setIndex(new THREE.BufferAttribute(elements, 1));
-
         let debug_geometry = new XYSphere({radius:1, widthSegments: 10, heightSegments: 10  });
         let debug_cylinder = new OpenCylinder();
+
         let instance_debug = new THREE.InstancedMesh(debug_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.nodes.length);
-        let instance_cylinder = new THREE.InstancedMesh(debug_cylinder, new THREE.MeshBasicMaterial({ color: 0xffAA00, side: THREE.DoubleSide }), this.nodes.length*100);
+        let instance_cylinder = new THREE.InstancedMesh(debug_cylinder, new THREE.MeshBasicMaterial({ color: 0xffAA00, side: THREE.DoubleSide }), this.nodes.length*10);
+
 
         let debug_visited = {}
 
@@ -258,13 +295,12 @@ class MeshGraph extends React.Component {
 
             for(let n = 0; n < node.neighbors.length; n++)
             {
-                //console.log(node.neighbors.length);
                 let neighbor = node.neighbors[n];
                 let edge_desc = node.vertex_id + "-" + neighbor.vertex_id;
 
                 if(debug_visited[edge_desc] == undefined)
                 {
-                    debug_visited[edge_desc] = true;
+                    //debug_visited[edge_desc] = true;
 
 
                     let axis = neighbor.position.clone().sub(node.position);
@@ -275,7 +311,7 @@ class MeshGraph extends React.Component {
 
                     //how to compose my scale position and rotation? 
                     let quaternion = new THREE.Quaternion().setFromAxisAngle(axis_norm, -angle);
-                    let mc = new THREE.Matrix4().compose(node.position, quaternion, new THREE.Vector3(1, al, 1))
+                    let mc = new THREE.Matrix4().compose(node.position, quaternion, new THREE.Vector3(1, al, 1));
 
                     //mc.scale(new THREE.Vector3(0.2,0.2,0.2));
                     instance_cylinder.setMatrixAt(edge_instance, mc);
@@ -291,15 +327,47 @@ class MeshGraph extends React.Component {
         instance_debug.instanceMatrix.needsUpdate = true;
         instance_cylinder.instanceMatrix.needsUpdate = true;
 
+        return {points: instance_debug, edges: instance_cylinder};
+    }
+
+    generate_mesh()
+    {
+
+        let num_tris = this.nodes.length*5;
+
+        let vertices = new Float32Array(num_tris * 9);
+        let elements = new Uint16Array(num_tris * 3);
+        let normals = new Float32Array(num_tris * 9);
+        let uvs = new Float32Array(num_tris * 6);
+
+        let elementPack = [0,0];
+
+        this.build_triangles(vertices, elements, normals, uvs, elementPack);
+        
+        let bufferGeometry = new THREE.BufferGeometry();
+        bufferGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+        bufferGeometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        bufferGeometry.setIndex(new THREE.BufferAttribute(elements, 1));
+
+        //let debug_geometry = this.generate_mesh_debug_geometry();
+        
+
         return (
         <group ref={this.groupRef}>
             <mesh geometry={bufferGeometry} material={new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })} ></mesh>
-            <primitive object={instance_debug}></primitive>
-            <primitive object={instance_cylinder}></primitive>
+            
+            
+            {/* <primitive object={debug_geometry.points}></primitive>
+            <primitive object={debug_geometry.edges}></primitive>  */}
+            {/* <primitive object={this.global_point_debug}></primitive> */}
+            {this.text_debug}
         </group>
         );
 
     }
+
+
 
 
     render() {
