@@ -135,7 +135,7 @@ class EventSystem extends React.Component{
     linear_interpolation(from, to, t)
     {
         /* console.log(from, to, t); */
-        return from + (to-from)*t;
+        return from + ((to-from)*t);
 
     }
 
@@ -144,10 +144,10 @@ class EventSystem extends React.Component{
     {
         if(isRef == true)
         {
-            return object.current.position;
+            return object.current.position.clone();
         }else
         {
-            return object.position;
+            return object.position.clone();
         }
     }
 
@@ -157,15 +157,15 @@ class EventSystem extends React.Component{
         if(isRef == true)
         {
             
-            //console.log(from, to, t);
+            console.log(from, to, t);
             
             
             let x = this.interpolation_methods[easing](from.x, to.x, t);
             let y = this.interpolation_methods[easing](from.y, to.y, t);
             let z = this.interpolation_methods[easing](from.z, to.z, t);
 
-            console.log("("+x+ ", " + y + ", " + z + ")"); 
-
+            //console.log("("+x+ ", " + y + ", " + z + ")"); 
+            object.current.position.set(x,y,z);
 
         }else
         {
@@ -202,7 +202,8 @@ class EventSystem extends React.Component{
                     //if this is the first time the event attributes was encountered then set the init
                     if(event_attributes[attribute_index].init == false)
                     {
-                        event_attributes[i].from  = this.retrievable_attributes[event_attributes[i].attribute]({object:event_head.object, isRef:event_head.isRef});
+                        console.log("updating");
+                        event_attributes[attribute_index].from  = this.retrievable_attributes[event_attributes[attribute_index].attribute]({object:event_head.object, isRef:event_head.isRef});
                         event_attributes[attribute_index].init = true;
                     }
 

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { Canvas } from 'react-three-fiber';
 
 //Imported cameras
-import { PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 
 // Complete object uses noise to displace surface badly
 import ExtragalacticObject from '../../CompleteObjects/ExtragalacticObject.jsx';
@@ -53,10 +53,12 @@ function HubbleRedshift ()
                 
                     <Canvas style={{width:"600px", height: "600px"}}>
                         
-                        <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh>
+                        {/* <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh> */}
                         
                         
-                        <PerspectiveCamera makeDefault ref={scene_context.camera} position={[0,0,3]} ></PerspectiveCamera>
+                        {<PerspectiveCamera makeDefault ref={scene_context.camera} position={[0,0,3]} ></PerspectiveCamera>}
+                        <OrbitControls ></OrbitControls>
+                        <InstanceMachine></InstanceMachine>
                         <EventAnimation {...scene_context}></EventAnimation>
 
                     </Canvas>
