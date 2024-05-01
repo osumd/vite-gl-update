@@ -16,16 +16,16 @@ class InstanceMachine extends React.Component {
         //seting up geometries
         this.xy_sphere_geometry = XYSphere({radius:1.0, widthSegments:10, heightSegments:10});
 
-        this.instances_xy_spheres_capacity = 1;
+        this.instances_xy_spheres_capacity = 0;
         this.instancedXYSphere = new THREE.InstancedMesh(this.xy_sphere_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_xy_spheres_capacity);
         
         this.instances_xy_spheres_size = 0;
 
-        this.add_xy_sphere(new THREE.Vector3(0,1,0), 0.01);
+        /* this.add_xy_sphere(new THREE.Vector3(0,1,0), 0.01);
         this.add_xy_sphere(new THREE.Vector3(1,0,0), 0.02);
         this.add_xy_sphere(new THREE.Vector3(1,1,0), 0.02);
         this.add_xy_sphere(new THREE.Vector3(1,2,0), 0.02);
-        this.add_xy_sphere(new THREE.Vector3(1,3,0), 0.02);
+        this.add_xy_sphere(new THREE.Vector3(1,3,0), 0.02); */
         
         
 
@@ -87,7 +87,7 @@ class InstanceMachine extends React.Component {
         <group>
             {/* {this.instancedXYSphere !== undefined && <primitive object={this.instancedXYSphere} />} */}
             <primitive object={this.instancedXYSphere}></primitive>
-            <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh>
+            
         </group>
         );
     }

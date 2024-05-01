@@ -54,7 +54,7 @@ class MeshGraph extends React.Component {
 
         if(this.nodes_list[vertex_id] != undefined)
         {
-            //console.log("duplicate");
+            console.log("duplicate");
             return;
         }
 
@@ -70,7 +70,7 @@ class MeshGraph extends React.Component {
 
         if(node1 == undefined || node2 == undefined)
         {
-            //console.log("node not found");
+            console.log("node not found");
             return;
         }
 
@@ -151,7 +151,7 @@ class MeshGraph extends React.Component {
     }
 
     //mini algorithm which makes the mesh from the graph
-    non_sharing_neighbor(node, visited, Q, vertices, elements, normals, uvs, elementPack)
+    non_sharing_neighbor(in_triangulation, node, visited, Q, vertices, elements, normals, uvs, elementPack)
     {
 
         let nodal_neighbors = {};
@@ -187,6 +187,8 @@ class MeshGraph extends React.Component {
                     let n = p1.clone().sub(p0).cross(p2.clone().sub(p0)).normalize();
                     let uv = [node.uv.x, node.uv.y, neighbor.uv.x, neighbor.uv.y, adj_neighbor.uv.x, adj_neighbor.uv.y];
                     this.insert_triangle(p0,p1,p2,n,uv,vertices, elements, normals, uvs, elementPack);
+                
+                    //in_triangulation[neighbor.vertex_id+adj_neighbor.vertex_id] = 1;
                 }
             }
         }
@@ -196,7 +198,7 @@ class MeshGraph extends React.Component {
     }
 
 
-    choose_neighbors(node, visited, Q, vertices, elements, normals, uvs, elementPack)
+    choose_neighbors(in_triangulation, node, visited, Q, vertices, elements, normals, uvs, elementPack)
     {
 
 
@@ -204,9 +206,11 @@ class MeshGraph extends React.Component {
 
         //value for whether the correct index is found
         
-        let nodal_neighbors = {};
-        let nodal_neighbor_array = [];
-        let triangles = {};
+        let neighbors_array = [];
+        
+        
+        
+        
 
         for(let neighbor of node.neighbors)
         {
@@ -216,19 +220,155 @@ class MeshGraph extends React.Component {
                 
             }  
             
-            console.log(neighbor.vertex_id);
+            neighbors_array.push(neighbor);
+        }
+
+
+
+        let triangular_visited = {};
+        let closest_index = 0;
+        let closest_distance = 0;
+
+        for(let i = 0 ; i < neighbors_array.length; i++)
+        {
+            let closest_distance = Math.pow(2,20);
+            let closest_index = -1;
+
+            for(let j = 0; j < neighbors_array.length; j++)
+            {
+
+                if(i != j && triangular_visited[j] == undefined)
+                {
+
+                    //distance to the neighbor
+                    let distance_to_neighbor = neighbors_array[j].position.clone().sub(neighbors_array[i].position).length();
+                    
+                    if(distance_to_neighbor < closest_distance)
+                    {
+                        closest_index = j;
+                        closest_distance = distance_to_neighbor;
+                    }
+
+                }
+
+            }
+
+            if(closest_index != -1)
+            {
+                
+                let p0 = node.position.clone();
+
+                let p1 = neighbors_array[i].position.clone();
+                let p2 = neighbors_array[closest_index].position.clone();
+
+                triangular_visited[closest_index] = 1;
+
+                let n = (p1.clone().sub(p0)).cross(p2.clone().sub(p0));
+
+                this.insert_triangle(p0, p1, p2, n, [0,0,1,0,1,1], vertices, elements, normals, uvs, elementPack);
+
+                
+            }
+
+            //put the closest index into
             
-            nodal_neighbors[neighbor.vertex_id] = neighbor.vertex_id;
 
-            nodal_neighbor_array.push(neighbor);
-
-
-        
         }
 
 
 
     }
+
+    better_neighbors(in_triangulation, node, visited, Q, vertices, elements, normals, uvs, elementPack)
+    {
+
+
+        let p0 = node.position;
+
+        //value for whether the correct index is found
+        
+        let neighbors_array = [];
+        
+        
+        
+        
+
+        for(let neighbor of node.neighbors)
+        {
+            if(visited[neighbor.vertex_id] == undefined)
+            {
+                Q.push_front(neighbor);
+                
+            }  
+            
+            neighbors_array.push(neighbor);
+        }
+
+
+
+        let triangular_visited = {};
+
+        for(let i = 0 ; i < neighbors_array.length; i++)
+        {
+
+            let prime = neighbors_array[i];
+            let center_to_prime =   prime.position.clone().sub(node.position);
+
+            for(let j = 0; j < neighbors_array.length; j++)
+            {
+
+                if(i != j && (triangular_visited[`{${i}+${j}}`] == undefined && triangular_visited[`{${j}+${i}}`] == undefined ))
+                {
+                    let subprime = neighbors_array[j];
+                    let center_to_subprime = subprime.position.clone().sub(node.position);
+
+                    //normal of our triangle should be simlar to the normals of the vertices.
+                    let triangular_normal = center_to_prime.clone().cross(center_to_subprime);
+
+                    let dot_normal_prime = triangular_normal.dot( node.normal );
+
+                    let dot_prime_subprime = center_to_prime.dot(center_to_subprime);
+
+                    if(dot_prime_subprime >= 0)
+                    {
+                        
+                        let p0 = node.position.clone();
+
+                        let p1 = neighbors_array[i].position.clone();
+                        let p2 = neighbors_array[j].position.clone();
+
+                        triangular_visited[`{${i}+${j}}`] = 1;
+
+                        let n = (p1.clone().sub(p0)).cross(p2.clone().sub(p0));
+
+                        this.insert_triangle(p0, p1, p2, n, [0,0,1,0,1,1], vertices, elements, normals, uvs, elementPack);
+
+                        break;
+                    }
+                    
+
+
+
+
+
+                
+
+
+
+                }
+
+            }
+
+
+            //put the closest index into
+            
+
+        }
+
+
+
+    }
+
 
     build_triangles(vertices, elements, normals, uvs, elementPack)
     {
@@ -239,6 +379,9 @@ class MeshGraph extends React.Component {
 
         let max_iter = 10000;
         let k = 0;
+
+        //hash map for vertices already in triangulation
+        let in_trianglulation = {};
 
         while(!Q.empty() && k < max_iter)
         {
@@ -257,9 +400,10 @@ class MeshGraph extends React.Component {
             let nodal_neighbors = {};
             let nodal_neighbor_array = [];
 
+            //this.non_sharing_neighbor(in_trianglulation, node, visited, Q, vertices, elements, normals, uvs, elementPack);
+            //this.choose_neighbors(in_trianglulation, node, visited, Q, vertices, elements, normals, uvs, elementPack);
+            this.better_neighbors(in_trianglulation, node, visited, Q, vertices, elements, normals, uvs, elementPack);
             //this.non_sharing_neighbor(node, visited, Q, vertices, elements, normals, uvs, elementPack);
-            this.choose_neighbors(node, visited, Q, vertices, elements, normals, uvs, elementPack);
-
 
 
 
@@ -278,7 +422,6 @@ class MeshGraph extends React.Component {
 
         let instance_debug = new THREE.InstancedMesh(debug_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.nodes.length);
         let instance_cylinder = new THREE.InstancedMesh(debug_cylinder, new THREE.MeshBasicMaterial({ color: 0xffAA00, side: THREE.DoubleSide }), this.nodes.length*10);
-
 
         let debug_visited = {}
 
@@ -333,7 +476,7 @@ class MeshGraph extends React.Component {
     generate_mesh()
     {
 
-        let num_tris = this.nodes.length*5;
+        let num_tris = this.nodes.length*24;
 
         let vertices = new Float32Array(num_tris * 9);
         let elements = new Uint16Array(num_tris * 3);
@@ -350,7 +493,7 @@ class MeshGraph extends React.Component {
         bufferGeometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
         bufferGeometry.setIndex(new THREE.BufferAttribute(elements, 1));
 
-        //let debug_geometry = this.generate_mesh_debug_geometry();
+        let debug_geometry = this.generate_mesh_debug_geometry();
         
 
         return (
@@ -358,17 +501,14 @@ class MeshGraph extends React.Component {
             <mesh geometry={bufferGeometry} material={new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })} ></mesh>
             
             
-            {/* <primitive object={debug_geometry.points}></primitive>
-            <primitive object={debug_geometry.edges}></primitive>  */}
-            {/* <primitive object={this.global_point_debug}></primitive> */}
+            <primitive object={debug_geometry.points}></primitive>
+            <primitive object={debug_geometry.edges}></primitive> 
+            
             {this.text_debug}
         </group>
         );
 
     }
-
-
-
 
     render() {
     return (
@@ -391,7 +531,7 @@ function debugSpheres(graph) {
         if(meshRef.current)
         {
 
-            console.log(graph, graph.nodes.length)
+            //console.log(graph, graph.nodes.length)
             
             for(let i = 0; i < graph.nodes.length; i++)
             {

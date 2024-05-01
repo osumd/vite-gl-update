@@ -53,13 +53,12 @@ function HubbleRedshift ()
                 
                     <Canvas style={{width:"600px", height: "600px"}}>
                         
-                        {/* <mesh scale={0.5} position={new THREE.Vector3(0.0,0.0,0.0)}><boxGeometry></boxGeometry></mesh> */}
                         
-                        
-                        {<PerspectiveCamera makeDefault ref={scene_context.camera} position={[0,0,3]} ></PerspectiveCamera>}
+                        {<XYSphereGraph radius={1.0} widthSegments={10} heightSegments={10}></XYSphereGraph>}
+                        <PerspectiveCamera makeDefault ref={scene_context.camera} position={[0,0,3]} ></PerspectiveCamera>
                         <OrbitControls ></OrbitControls>
                         <InstanceMachine></InstanceMachine>
-                        <EventAnimation {...scene_context}></EventAnimation>
+                        {/* <EventAnimation {...scene_context}></EventAnimation> */}
 
                     </Canvas>
 
