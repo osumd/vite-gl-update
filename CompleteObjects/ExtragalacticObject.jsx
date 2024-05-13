@@ -8,7 +8,7 @@ import { XYSphere } from '../Primitives/PrimitiveSphere';
 
 
 import {OpenCylinder} from '../Primitives/PrimitiveCylinder';
-
+import { ElementSphere } from '../Primitives/ElementSphere';
 
 function ExtragalacticObject(){
     const ref = useRef();
@@ -20,11 +20,10 @@ function ExtragalacticObject(){
         
         for (let i = 0; i < area; i++) {
             const stride = i * 4;
-            texture_data[ stride ] = 0 + Math.random()*255;
-            
-            texture_data[ stride + 1 ] = 0 + Math.random()*255;
-            texture_data[ stride + 2 ] = 0 + Math.random()*255;
-            texture_data[ stride + 3 ] = 255;
+            texture_data[ stride ] = 0 + Math.random()*255*i;
+            texture_data[ stride + 1 ] = 0 + Math.random()*100*i;
+            texture_data[ stride + 2 ] = 0 + Math.random()*300*Math.sin(i);
+            texture_data[ stride + 3 ] = 0 + Math.random()*255;
         }   
 
         //https://threejs.org/docs/#api/en/textures/DataTexture
@@ -38,21 +37,20 @@ function ExtragalacticObject(){
         varying vec2 vUv;
         varying vec3 vNormal;
         uniform sampler2D noiseTexture;
+        uniform float time;
         void main() {
             vUv = uv;
-            vNormal = normalize(normal);
+            vNormal = normal;
 
             float surfaceOffset = 0.000001;
             vec2 normalUV = clamp(uv,0.2,0.9);
-            vec4 noise = texture2D(noiseTexture, normalUV);
-            
-            float noiseScore = (noise.x + noise.y + noise.z)/3.0;
+            vec4 noise = texture2D(noiseTexture, normal.xy*normal.xz);
 
-            float height = noiseScore;
+            vec3 surface_vertex = position + clamp(0.0,0.2,dot(noise.xyz/2.0,noise.xyz/2.0))*normal;
+            surface_vertex.x *= 4.0*clamp(0.0,1.0,dot(noise.xyz/2.0,noise.xyz/2.0));
+            surface_vertex.y *= 1.0*smoothstep(0.0, 1.0, noise.x);
 
 
-            vec3 surface_vertex = position + (normalize(normal) * height);
-            surface_vertex = position + normal*0.1;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(surface_vertex,1.0);
         }
     `;
@@ -61,46 +59,41 @@ function ExtragalacticObject(){
         uniform sampler2D noiseTexture;
         varying vec2 vUv;
         varying vec3 vNormal;
+        uniform float time;
         void main() {
             vec3 normal = normalize(vNormal);
             vec4 noise = texture2D(noiseTexture, vUv);
+            vec4 noise2 = texture2D(noiseTexture, vUv*noise.xy);
+
             gl_FragColor = vec4(vUv.x,vUv.x,vUv.x, 1.0);
             gl_FragColor = vec4(normal.x, normal.y, normal.z, 1.0);
-            //gl_FragColor = noise;
+            //gl_FragColor = noise2;
         }
     `;
 
-    // paints normals of mesh object.
-    function paintNormals()
-    {
-
-    }
-
-    const noiseTexture = createNoiseTexture(64);
+    const noiseTexture = createNoiseTexture(32);
     const material = new ShaderMaterial({
         uniforms: {
-            noiseTexture: { value: noiseTexture }
+            noiseTexture: { value: noiseTexture },
+            time: { value: 0},
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader,
+        side: THREE.DoubleSide
     });
 
 
-
-    useFrame((state,delta) => {
-        //ref.current.rotation.x += 0.01;
-        //ref.current.rotation.y += 0.01;
+    useFrame((state)=>{
+        material.uniforms.time.value = state.clock.elapsedTime;
     });
     
-    const geometry = new THREE.SphereGeometry(1.0, 128, 128);
-
-    const sphere_geometry = XYSphere({radius: 2.0, widthSegments: 16, heightSegments: 16});
-
+    const sphere_geometry = new ElementSphere({radius: 1.0}).GenerateSphere();
 
     //console.log(sphere_geometry);
     return <mesh geometry={sphere_geometry} material={material}></mesh>
     //return <mesh ref={ref} material={material} geometry={geometry} ></mesh>
 
+    
     
 }
 

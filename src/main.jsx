@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
 import HubbleRedshift from './HubbleRedshift/HubbleRedshift.jsx'
+import OriginalThree from './HubbleRedshift/OriginalThree.jsx'
 import './index.css'
 
 /* const ThreeContext = createContext();
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Router>
       <Routes>
         <Route path="/" element={<HubbleRedshift />} />
+        <Route path="/t" element={<OriginalThree />} />
       </Routes>
     </Router>
   </React.StrictMode>,

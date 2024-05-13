@@ -2358,10 +2358,10 @@ to-fast-properties@^2.0.0:
   resolved "https://registry.npmjs.org/to-fast-properties/-/to-fast-properties-2.0.0.tgz"
   integrity sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==
 
-troika-three-text@^0.49.0:
-  version "0.49.0"
-  resolved "https://registry.npmjs.org/troika-three-text/-/troika-three-text-0.49.0.tgz"
-  integrity sha512-sn9BNC6eIX8OO3iAkPwjecJ7Pn21Ve8P1UNFMNeQzXx759rrqS4i4pSZs7FLMYdWyCKVXBFGimBySFwRKLjq/Q==
+troika-three-text@^0.49.0, troika-three-text@^0.49.1:
+  version "0.49.1"
+  resolved "https://registry.npmjs.org/troika-three-text/-/troika-three-text-0.49.1.tgz"
+  integrity sha512-lXGWxgjJP9kw4i4Wh+0k0Q/7cRfS6iOME4knKht/KozPu9GcFA9NnNpRvehIhrUawq9B0ZRw+0oiFHgRO+4Wig==
   dependencies:
     bidi-js "^1.0.2"
     troika-three-utils "^0.49.0"

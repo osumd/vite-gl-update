@@ -2,13 +2,13 @@ import { useFrame } from 'react-three-fiber';
 import * as THREE from 'three';
 import { ShaderMaterial, SphereGeometry } from 'three';
 import React from 'react';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 import { MeshGraph } from './MeshGraph';
 
-function XYSphereGraph({ radius, widthSegments, heightSegments})
+function XYSphereGraph({ scene_context, radius, widthSegments, heightSegments})
 {
-    console.log("Go");
+    console.log(scene_context.camera.current);
     let grid_area = 2*(radius);
 
     let dx = grid_area/widthSegments;
@@ -85,7 +85,7 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
             p3.set(-x,yppp,zp);
 
 
-            var n = p1.clone().sub(p0).cross(p3.clone().sub(p0)).normalize();
+            var n = p1.clone().sub(p0).cross(p2.clone().sub(p0)).normalize();
 
             meshGraph.add_node(p0.clone(),n.clone(),new THREE.Vector2(0,0),`{${(i).toString()},${(j).toString()}}`);
 
@@ -103,32 +103,16 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
             {
                 meshGraph.add_node(p2.clone(),n.clone(),new THREE.Vector2(0,0),`{${(i+1).toString()},${(j+1).toString()}}`);
             }
+        
             
-
-            //meshGraph.add_node(p0.clone(),n.clone(),new THREE.Vector2(0,0),`{${(i+1).toString()},${(j).toString()}}`);
-            /* meshGraph.add_node(p1.clone(),n.clone(),new THREE.Vector2(1,0),`{${(i+1).toString()},${(j).toString()}}`);
-            meshGraph.add_node(p2.clone(),n.clone(),new THREE.Vector2(1,1),`{${(i+1).toString()},${(j+1).toString()}}`);
-            meshGraph.add_node(p3.clone(),n.clone(),new THREE.Vector2(0,1),`{${(i).toString()},${(j+1).toString()}}`); */
-            
-            /* meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i+1).toString()},${(j).toString()}}`);
-            meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i).toString()},${(j+1).toString()}}`); */
-            
-            //meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`,`{${(i).toString()},${(j+1).toString()}}`);
 
             p0.set(x,-y,z);
             p1.set(xp,-ypp,z);
             p2.set(xp,-yp,zp);
             p3.set(x,-yppp,zp);
 
-            //meshGraph.add_node(p0.clone(),n.clone(),new THREE.Vector2(0,0), "-" + `{${(i).toString()}, ${(j).toString()}}`  );
+            n = p1.clone().sub(p0).cross(p3.clone().sub(p0)).normalize();
 
-
-            /* meshGraph.add_node(p1.clone(),n.clone(),new THREE.Vector2(1,0), "-" + `{${(i+1).toString()},${(j).toString()}}`    );
-            meshGraph.add_node(p2.clone(),n.clone(),new THREE.Vector2(1,1), "-" + `{${(i+1).toString()},${(j+1).toString()}}`    );
-            meshGraph.add_node(p3.clone(),n.clone(),new THREE.Vector2(0,1), "-" + `{${(i).toString()},${(j+1).toString()}}`     ); */
-            
-            /* meshGraph.add_edge( "-"+`{${(i).toString()},${(j).toString()}}`,"-"+`{${(i+1).toString()},${(j).toString()}}`);
-            meshGraph.add_edge("-"+`{${(i).toString()},${(j).toString()}}`,"-"+`{${(i).toString()},${(j+1).toString()}}`); */
 
             if( i == 0 || i == widthSegments-1 || j == 0 || j == heightSegments-1)
             {
@@ -152,13 +136,11 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
             {
                 meshGraph.add_node(p2.clone(),n.clone(),new THREE.Vector2(0,0),"-"+`{${(i+1).toString()},${(j+1).toString()}}`);
             }
+        
 
 
         }
     }
-
-    console.log(meshGraph.nodes_list);
-
 
     for(var i = 0; i < widthSegments+1; i++)
     {
@@ -166,10 +148,20 @@ function XYSphereGraph({ radius, widthSegments, heightSegments})
         {
             meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`, `{${(i).toString()},${(j-1).toString()}}`);
             meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`, `{${(i+1).toString()},${(j).toString()}}`);
+        
+            meshGraph.add_edge("-"+`{${(i).toString()},${(j).toString()}}`, "-"+`{${(i).toString()},${(j-1).toString()}}`);
+            meshGraph.add_edge("-"+`{${(i).toString()},${(j).toString()}}`, "-"+`{${(i+1).toString()},${(j).toString()}}`);
+
+            if ( i == 0 && j == 0 ) { meshGraph.add_edge(`{${(i).toString()},${(j).toString()}}`, "-"+`{${(i).toString()},${(j).toString()}}`); 
+        }
+
         }
     }
 
 
+    // operate on the mesh graph
+    //meshGraph.fix_bad_neighbors();
+    meshGraph.normalize();
 
     return meshGraph.generate_mesh();
 

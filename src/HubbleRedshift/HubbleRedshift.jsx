@@ -15,6 +15,8 @@ import { XYSphere } from '../../Primitives/PrimitiveSphere.jsx';
 import { XYSphereGraph } from '../MeshGraph/SphereGraph';
 import { Dequeue } from '../DataStructures/Dequeue.jsx';
 
+import { ElementSphere } from '../../Primitives/ElementSphere.jsx';
+
 //Import animator
 import {EventSystem, EventAnimation} from '../EventAnimation/EventAnimation.jsx'
 
@@ -52,12 +54,10 @@ function HubbleRedshift ()
 
                 
                     <Canvas style={{width:"600px", height: "600px"}}>
-                        
-                        
-                        {<XYSphereGraph radius={1.0} widthSegments={10} heightSegments={10}></XYSphereGraph>}
                         <PerspectiveCamera makeDefault ref={scene_context.camera} position={[0,0,3]} ></PerspectiveCamera>
-                        <OrbitControls ></OrbitControls>
-                        <InstanceMachine></InstanceMachine>
+                        
+                        <OrbitControls></OrbitControls>
+                        <InstanceMachine ref={scene_context.instanceMachine}></InstanceMachine>
                         {/* <EventAnimation {...scene_context}></EventAnimation> */}
 
                     </Canvas>

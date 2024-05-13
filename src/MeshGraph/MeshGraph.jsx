@@ -9,6 +9,9 @@ import { OpenCylinder } from '../../Primitives/PrimitiveCylinder';
 
 import { Text } from '@react-three/drei';
 
+import InstanceMachine from '../../Primitives/InstanceMachine.jsx';
+
+
 class MeshNode {
     constructor(position, normal, uv, vertex_id){
 
@@ -70,7 +73,6 @@ class MeshGraph extends React.Component {
 
         if(node1 == undefined || node2 == undefined)
         {
-            console.log("node not found");
             return;
         }
 
@@ -375,7 +377,16 @@ class MeshGraph extends React.Component {
         let Q = new Dequeue();
 
         let visited = {};
-        Q.push_front(this.nodes[0]);
+
+        for(let i = 0; i < this.nodes.length; i++)
+        {
+            if(this.nodes[i].neighbors.length > 1)
+            {
+                Q.push_front(this.nodes[i]);
+                break;
+            }
+        }
+        
 
         let max_iter = 10000;
         let k = 0;
@@ -413,7 +424,6 @@ class MeshGraph extends React.Component {
         /* console.log("k: " + k.toString());
         console.log("num_tris: " + num_tris.toString()); */
     }
-
 
     generate_mesh_debug_geometry()
     {
@@ -507,6 +517,36 @@ class MeshGraph extends React.Component {
             {this.text_debug}
         </group>
         );
+
+    }
+
+    normalize()
+    {
+        
+        let visited = {};
+        for(let n = 0; n < this.nodes.length; n++)
+        {
+            let node = this.nodes[n];
+            
+
+            for(let nn = 0; nn < node.neighbors.length; nn++)
+            {
+                
+                let neighbor = node.neighbors[nn];
+                if(visited[neighbor.vertex_id] != undefined)
+                {
+                    continue;
+                }
+                visited[neighbor.vertex_id] = 1;
+
+                let dn = node.normal.dot(neighbor.normal);
+
+                let v = neighbor.position.clone().sub(node.position).normalize();
+                neighbor.position = neighbor.position.add(neighbor.normal.clone().multiplyScalar(0.5));
+            }
+
+        }
+
 
     }
 
