@@ -11,6 +11,10 @@ class EventSystem extends React.Component{
     {
         super();
 
+        // Allow the scene context to propogate
+        this.scene_context = scene_context;
+
+
         this.paused = true;
 
         //events
@@ -32,17 +36,19 @@ class EventSystem extends React.Component{
     
     }
 
+    // Adders | Add stuff to this this is a mess
 
-    add_event( {object, start="auto", end="auto", duration="auto", isRef=false}, ...args )
+    add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false}, ...args )
     {
+
         /* console.log("Object: " + object);
-        console.log("attributes: " + attributes );
+        console.log("attributes: " + args );
         console.log("start " + start);
         console.log("end " + end);
-        console.log("duration " + duration);
-        console.log("init" + init);
-        console.log("isref" + isRef); */
-
+        console.log("duration " + duration); */
+        console.log(args);
+        /* console.log("isref" + isRef); 
+        console.log("isText", isText); */
         //resolve autos
         //if the object is undefined which is the only hard required arg return and die.
         if(object == undefined)
@@ -117,7 +123,6 @@ class EventSystem extends React.Component{
             //push arg in.
             arg_array.push(arg);
 
-
         }
 
         //if atleast one attribute passed by update and push the event
@@ -129,12 +134,29 @@ class EventSystem extends React.Component{
             }
 
             //push the event to the array
-            this.events.push({ head: {object,start,end, duration, isRef}, attributes: arg_array });
+            this.events.push({ head: {object,start,end, duration, isRef, isText}, attributes: arg_array });
+
+            
         }
         
         
     
         
+    }
+    
+    //adds text into the timeline
+    add_text( {text="", duration="auto", color=0x9966FF, size=1, position = new THREE.Vector3(0,0,0), rotation= new THREE.Vector3(0,0,0), quaternion = new THREE.Quaternion(0,0,0,0)}, ...args )
+    {
+
+
+        // Reach out to the scene context and ask it to generate some friendly text for me
+
+        //console.log(this.scene_context);
+        let id = this.scene_context.reusable_text.add_text({text, color, size, position, rotation, quaternion});
+
+        //add_event({id})
+        this.add_event({object: id,duration:duration,isText:true}, args);
+
     }
 
     //methods of interpolation
@@ -151,6 +173,9 @@ class EventSystem extends React.Component{
         if(head.isRef == true)
         {
             return head.object.current.position.clone();
+        }else if (head.isText == true )
+        {
+            console.log("text object");
         }else
         {
             return head.object.position.clone();
@@ -162,7 +187,9 @@ class EventSystem extends React.Component{
         
         if(head.isRef == true)
         {  
-            
+            //set easing from attribute arg
+            let easing = attribute.easing;
+
             let x = this.interpolation_methods[easing](attribute.from.x, attribute.to.x, t);
             let y = this.interpolation_methods[easing](attribute.from.y, attribute.to.y, t);
             let z = this.interpolation_methods[easing](attribute.from.z, attribute.to.z, t);
@@ -170,8 +197,15 @@ class EventSystem extends React.Component{
 
             head.object.current.position.set(x,y,z);
 
+        }else if ( head.isText == true)
+        {
+
+            
         }else
         {
+            //set easing from attribute arg
+            let easing = attribute.easing;
+
             let x = this.interpolation_methods[easing](attribute.from.x, attribute.to.x, t);
             let y = this.interpolation_methods[easing](attribute.from.y, attribute.to.y, t);
             let z = this.interpolation_methods[easing](attribute.from.z, attribute.to.z, t);
@@ -183,36 +217,50 @@ class EventSystem extends React.Component{
     }
 
     //subset for the look at position
-
     get_object_lookat({head, attribute})
     {
         if(head.isRef == true)
         {
-
-            
-            
-            return head.object.current.quaternion;
+        
+            return head.object.current.quaternion.clone();
         }else
         {
-            let forwardVector = new THREE.Vector3(0,0,-1);
-            forwardVector.applyQuaternion(head.object.quaternion);
 
-            //get the current location and find the target look at vector
-            let current_position = this.get_object_position({head,attribute});
-            //console.log(current_position);
             
-            attribute.to.sub(current_position);
+            let forwardVector = new THREE.Vector3(0, 0, -1);
+            forwardVector.applyQuaternion(head.object.quaternion.clone()).normalize();
 
-            let axis = forwardVector.clone().cross(attribute.to).normalize();
+            let current_position = this.get_object_position({ head, attribute });
 
-            let d = forwardVector.clone().dot(attribute.to.clone());
-            let a = Math.acos(d/(forwardVector.length()*attribute.to.length()));
-            let q = new THREE.Quaternion().setFromAxisAngle(axis, a);
+            // Ensure current_position and attribute.to are Vector3 objects
+            current_position = new THREE.Vector3(current_position.x, current_position.y, current_position.z);
+            attribute.to = new THREE.Vector3(attribute.to.x, attribute.to.y, attribute.to.z);
 
-            attribute.to = q;
-            
+            let look = attribute.to.clone().sub(current_position).normalize();
 
-            return head.object.quaternion;
+            // If the vectors are very similar, just return the current quaternion
+            if (forwardVector.dot(look) > 0.9999) {
+                return head.object.quaternion.clone();
+            }
+
+            let euler = new THREE.Euler();
+            euler.setFromQuaternion(head.object.quaternion, 'YXZ'); // Adjust order if necessary
+
+            // Calculate rotation angles
+            let pitch = Math.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z));
+            let yaw = Math.atan2(-look.x, -look.z);
+
+            // Set Euler angles
+            euler.set(pitch, yaw, 0, 'YXZ'); // Adjust order if necessary
+
+            // Convert Euler angles back to quaternion
+            let q = new THREE.Quaternion().setFromEuler(euler);
+
+            attribute.to = q.clone();
+
+            return head.object.quaternion.clone();
+
+
         }
 
     }
@@ -226,7 +274,16 @@ class EventSystem extends React.Component{
 
         }else
         {
-            head.object.quaternion.slerpQuaternions(attribute.from,attribute.to, t);
+            ///let sQ = attribute.from.clone().slerp(attribute.to.clone(), t);
+            
+            // Assign the slerped quaternion to the object's quaternion
+            //head.object.quaternion.copy(sQ);
+            //head.object.quaternion.slerp(attribute.to, t);
+
+            //console.log(t);
+
+            /* head.object.rotation.copy(new THREE.Euler().setFromQuaternion(sQ)); */
+            head.object.quaternion.slerpQuaternions(attribute.from.clone(),attribute.to.clone(), t);
         }
     
     
@@ -237,17 +294,19 @@ class EventSystem extends React.Component{
 
         for(let i = 0 ; i < this.events.length; i++)
         {
-
+            console.log("hello");            
             let event = this.events[i];
             let event_head = this.events[i].head;
             let event_attributes = this.events[i].attributes;
 
-
-            if ( this.timeline_head > event_head.start && this.timeline_head < event_head.end )
+            if ( this.timeline_head >= event_head.start && this.timeline_head <= event_head.end )
             {
                 //measure the distance past start as t
                 let t = (this.timeline_head - event_head.start) / event_head.duration;
-                
+
+
+                console.log(`i: ${i} head: ${this.timeline_head} start: ${event_head.start} end: ${event_head.duration} t: ${t}`);
+
                 for(let attribute_index = 0; attribute_index < event_attributes.length; attribute_index++)
                 {
                     //attribute_title
@@ -256,8 +315,12 @@ class EventSystem extends React.Component{
                     //if this is the first time the event attributes was encountered then set the init
                     if(event_attributes[attribute_index].init == false)
                     {
-                        //console.log("updating");
+
                         event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
+
+
+                        
+
                         event_attributes[attribute_index].init = true;
                     }
 
@@ -283,7 +346,11 @@ class EventSystem extends React.Component{
 
         }else
         {
+            //console.log(`EVENT_ANIM: ${elapsed_time}`);
+            //console.log(`EVENT_ANIM: Pre time ${this.timeline_head}`);
             this.timeline_head += elapsed_time;
+            //console.log(`EVENT_ANIM: Post time ${this.timeline_head}`);
+
             this.update_events();
         }
 
