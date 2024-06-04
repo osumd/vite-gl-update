@@ -30,6 +30,8 @@ class ReusableText extends React.Component {
         }else
         {
             this.text_objects.push( new Text() );
+
+
             return this.text_objects.length-1;
         }
     }
@@ -44,7 +46,7 @@ class ReusableText extends React.Component {
 
 
         this.text_objects[text_id].anchorX = "center";
-        this.text_objects[text_id].anchorY = "middle";
+        //this.text_objects[text_id].anchorY = "middle";
         //this.text_objects[text_id].position = position;
         //this.text_objects[text_id].rotation = rotation;
         //this.text_objects[text_id].quaternion = quaternion;
@@ -64,6 +66,12 @@ class ReusableText extends React.Component {
         // shrink the text object
         this.text_objects[id].text = "";
 
+    }
+
+    // Return text object
+    get_text(id)
+    {
+        return this.text_objects[id];
     }
 
     edit_text(id)

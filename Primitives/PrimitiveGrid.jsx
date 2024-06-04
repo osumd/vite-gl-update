@@ -101,7 +101,7 @@ class CylinderGrid {
         
         let push_array = [0,0];
 
-        push_array = this.push_cylinder_back(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-10), 1.0, vertices, normals,uvs,elements, currentVertex, j, 12)
+        push_array = this.push_cylinder_back(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-10), 1.0, vertices, normals,uvs,elements, currentVertex, j, 12);
         currentVertex = push_array[0]; j = push_array[1];
         // push_array = this.push_cylinder_back(start, new THREE.Vector3(1,10,0), 1.0, vertices, normals,uvs,elements, currentVertex, j, 12)
         // currentVertex = push_array[0]; j = push_array[1];

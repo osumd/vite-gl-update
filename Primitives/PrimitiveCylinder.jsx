@@ -1,5 +1,5 @@
 
-import { useFrame } from 'react-three-fiber';
+
 import * as THREE from 'three';
 import { ShaderMaterial, SphereGeometry } from 'three';
 
@@ -22,7 +22,9 @@ function OpenCylinder()
         let currentVertex = 0;
         let j = 0;
         let push_array = [0,0];
-        push_array = push_cylinder_back(start, end, 0.01, vertices, normals,uvs,elements, currentVertex, j, 12)
+
+        push_array = push_cylinder_back(start, end, 0.01, vertices, normals,uvs,elements, currentVertex, j, 12);
+
         currentVertex = push_array[0]; j = push_array[1];
         
         bufferGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));

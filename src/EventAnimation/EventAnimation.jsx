@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import { useFrame } from 'react-three-fiber';
 import * as THREE from 'three';
 
 import {interval_segment_tree, interval_segment_node} from '../DataStructures/interval_segment_tree';
@@ -13,9 +12,9 @@ class EventSystem extends React.Component{
 
         // Allow the scene context to propogate
         this.scene_context = scene_context;
-
-
-        this.paused = true;
+    //    console.log("Event System: Scene Context", this.scene_context);
+        
+        this.paused = false;
 
         //events
         this.events = [];
@@ -27,10 +26,16 @@ class EventSystem extends React.Component{
         this.interval_tree = new interval_segment_tree();
         
         //animateable attributes
-        this.animateable_attributes = {"position":this.update_object_position.bind(this), "lookat":this.update_object_lookat.bind(this) };
+        this.animateable_attributes = {
+            "position":this.update_object_position.bind(this), 
+            "lookat":this.update_object_lookat.bind(this),
+            "orthoview":this.update_object_orthoview.bind(this) };
         
         //get specific attributes from object
-        this.retrievable_attributes = {"position": this.get_object_position, "lookat":this.get_object_lookat.bind(this) };
+        this.retrievable_attributes = {
+            "position": this.get_object_position.bind(this), 
+            "lookat":this.get_object_lookat.bind(this),
+            "orthoview":this.get_object_orthoview.bind(this) };
         //interpolation methods
         this.interpolation_methods = { "linear":this.linear_interpolation.bind(this) };
     
@@ -40,13 +45,13 @@ class EventSystem extends React.Component{
 
     add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false}, ...args )
     {
-
+        console.log("Created");    
         /* console.log("Object: " + object);
         console.log("attributes: " + args );
         console.log("start " + start);
         console.log("end " + end);
         console.log("duration " + duration); */
-        console.log(args);
+        //console.log(args);
         /* console.log("isref" + isRef); 
         console.log("isText", isText); */
         //resolve autos
@@ -82,7 +87,11 @@ class EventSystem extends React.Component{
     
         for( let arg of args )
         {
-
+            
+            // console.log(`Arg Layout: `);
+            // console.log(`To: ${arg.to}`);
+            // console.log(`Attribute: ${arg.attribute}`);
+            
             //filter out bad args
             
             if(arg.to == undefined)
@@ -124,6 +133,7 @@ class EventSystem extends React.Component{
             arg_array.push(arg);
 
         }
+        
 
         //if atleast one attribute passed by update and push the event
         if(arg_array.length > 0)
@@ -133,10 +143,9 @@ class EventSystem extends React.Component{
                 this.events_time_end = end;
             }
 
+            //console.log("EVENT_SYSTEM: Event added!");
             //push the event to the array
             this.events.push({ head: {object,start,end, duration, isRef, isText}, attributes: arg_array });
-
-            
         }
         
         
@@ -147,15 +156,19 @@ class EventSystem extends React.Component{
     //adds text into the timeline
     add_text( {text="", duration="auto", color=0x9966FF, size=1, position = new THREE.Vector3(0,0,0), rotation= new THREE.Vector3(0,0,0), quaternion = new THREE.Quaternion(0,0,0,0)}, ...args )
     {
-
-
+        
         // Reach out to the scene context and ask it to generate some friendly text for me
-
-        //console.log(this.scene_context);
         let id = this.scene_context.reusable_text.add_text({text, color, size, position, rotation, quaternion});
 
+        //console.log("Event System: Text Function", this.scene_context.reusable_text.get_text(id))
+        // for (let arg of args)
+        // {
+        //     console.log(arg.to);
+        // } 
+        //console.log("ADD_TEXT: Arg TO " + args[0].to)
+
         //add_event({id})
-        this.add_event({object: id,duration:duration,isText:true}, args);
+        this.add_event({object: id, duration:duration, isText:true},...args);
 
     }
 
@@ -167,15 +180,22 @@ class EventSystem extends React.Component{
 
     }
 
+
+    
+
     //updating objects based on attributes
     get_object_position({head, attribute})
     {
+        //console.log("UPDATE_OBJECT: this" + this.scene_context);
         if(head.isRef == true)
         {
             return head.object.current.position.clone();
         }else if (head.isText == true )
         {
-            console.log("text object");
+            
+            let object = this.scene_context.reusable_text.get_text(head.object);
+            
+            return object.position.clone();
         }else
         {
             return head.object.position.clone();
@@ -184,7 +204,7 @@ class EventSystem extends React.Component{
 
     update_object_position({head, attribute, t})
     {
-        
+            
         if(head.isRef == true)
         {  
             //set easing from attribute arg
@@ -199,7 +219,16 @@ class EventSystem extends React.Component{
 
         }else if ( head.isText == true)
         {
+            let easing = attribute.easing;
 
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.to.z, t);
+            
+            let object = this.scene_context.reusable_text.get_text(head.object);
+            
+
+            object.position.set(x,y,z);
             
         }else
         {
@@ -289,12 +318,100 @@ class EventSystem extends React.Component{
     
     }
 
+    // Sets attribute toQuat to rotate to ortho plane, and position to distance about object.
+    get_object_orthoview({head,attribute})
+    {
+        if(head.isRef == true)
+        {
+            return head.object.current.quaternion.clone();
+        }else
+        {
+
+            let forwardVector = new THREE.Vector3(0, 0, -1);
+            forwardVector.applyQuaternion(head.object.quaternion.clone()).normalize();
+
+            let orthoaxis;
+            if ( attribute.axis == "x" )
+            {
+                
+                orthoaxis = new THREE.Vector3(-1,0,0);
+            }
+            else if ( attribute.axis == "y" )
+            {
+                orthoaxis = new THREE.Vector3(0,-1,0);
+            }
+            else if ( attribute.axis == "z" )
+            {
+                orthoaxis = new THREE.Vector3(0,0,-1);
+            } else
+            {
+                console.log("EVENT_SYSTEM: Died no axis defined.");
+                return;
+            }
+            
+            //Get object current postion
+            let object_position = attribute.to;
+
+            // Fix the cross axis between forward and ortho
+            let cross_axis = orthoaxis.clone().cross( forwardVector );
+
+            // Find the dot product between the the forward and ortho.
+            let dot = forwardVector.dot(cross_axis);
+
+            // Define euler
+            let euler = new THREE.Euler();
+            euler.setFromQuaternion(head.object.quaternion, 'YXZ');
+
+            // Calculate rotation angles
+            let pitch = Math.atan2(orthoaxis.y, Math.sqrt(orthoaxis.x * orthoaxis.x + orthoaxis.z * orthoaxis.z));
+            let yaw = Math.atan2(-orthoaxis.x, -orthoaxis.z);
+
+            // Set Euler angles
+            euler.set(pitch, yaw, 0, 'YXZ'); // Adjust order if necessary
+
+            // Convert Euler angles back to quaternion
+            let q = new THREE.Quaternion().setFromEuler(euler);
+
+            let normo_axis = orthoaxis.clone().multiplyScalar(-1);
+            let new_position = object_position.clone().add(normo_axis.multiplyScalar(attribute.distance));            
+
+            attribute.fromQuat = head.object.quaternion.clone();
+            attribute.toQuat = q.clone();
+            attribute.fromPos = head.object.position.clone();
+            attribute.toPos = new_position;
+
+            return head.object.quaternion.clone();
+        }
+    }
+
+    // Updates.
+    update_object_orthoview({head,attribute,t})
+    {
+        if(head.isRef == true)
+        {
+
+        }else
+        {
+
+            //set easing from attribute arg
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.fromPos.x, attribute.toPos.x, t);
+            let y = this.interpolation_methods[easing](attribute.fromPos.y, attribute.toPos.y, t);
+            let z = this.interpolation_methods[easing](attribute.fromPos.z, attribute.toPos.z, t);
+            
+            head.object.position.set(x,y,z);
+
+            head.object.quaternion.slerpQuaternions(attribute.fromQuat.clone(),attribute.toQuat.clone(), t);
+        }
+    }
+
     update_events()
     {
 
         for(let i = 0 ; i < this.events.length; i++)
         {
-            console.log("hello");            
+                        
             let event = this.events[i];
             let event_head = this.events[i].head;
             let event_attributes = this.events[i].attributes;
@@ -305,7 +422,7 @@ class EventSystem extends React.Component{
                 let t = (this.timeline_head - event_head.start) / event_head.duration;
 
 
-                console.log(`i: ${i} head: ${this.timeline_head} start: ${event_head.start} end: ${event_head.duration} t: ${t}`);
+//                console.log(`i: ${i} head: ${this.timeline_head} start: ${event_head.start} end: ${event_head.duration} t: ${t}`);
 
                 for(let attribute_index = 0; attribute_index < event_attributes.length; attribute_index++)
                 {
@@ -343,7 +460,7 @@ class EventSystem extends React.Component{
 
         if(this.paused)
         {
-
+            //console.log("EVENT_SYSTEM: Paused");
         }else
         {
             //console.log(`EVENT_ANIM: ${elapsed_time}`);

@@ -18,14 +18,14 @@ class InstanceMachine extends React.Component {
         this.xy_sphere_geometry = XYSphere({radius:1.0, widthSegments:10, heightSegments:10});
         //set up cylinder geomtries [Cylinder]
         this.open_cylinder_geometry = OpenCylinder();
-
+        
         // the capacities for each geometry type and their instance 
 
         this.instances_xy_spheres_capacity = 10;
         this.instancedXYSphere = new THREE.InstancedMesh(this.xy_sphere_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_xy_spheres_capacity);
         
         this.instances_open_cylinder_capacity = 10;
-        this.instancedOpenCylinder = new THREE.InstancedMesh(this.open_cylinder_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instance_open_cylinder_capacity  );
+        this.instancedOpenCylinder = new THREE.InstancedMesh(this.open_cylinder_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_open_cylinder_capacity  );
 
         //bitmap font location
 
@@ -35,7 +35,7 @@ class InstanceMachine extends React.Component {
         this.instances_open_cylinder_size = 0;
 
         //set up map for instances with id's
-        let instanceIDs = {};
+        //let instanceIDs = {};
 
         this.nullify_instances();
         
@@ -117,11 +117,61 @@ class InstanceMachine extends React.Component {
 
     }
 
+    add_open_cylinder(start,end)
+    {
+        if(this.instances_open_cylinder_size == this.instances_open_cylinder_capacity)
+        {
+            //console.log("resize");
+            this.instances_open_cylinder_capacity = this.instances_open_cylinder_capacity*2;
+            
+            var new_mesh = new THREE.InstancedMesh(this.open_cylinder_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_open_cylinder_capacity);
+
+            if(this.instancedOpenCylinder != undefined)
+            {
+
+                for(let i = 0; i < this.instances_open_cylinder_size; i++)
+                {
+                    let matrix = new THREE.Matrix4();
+
+                    this.instancedOpenCylinder.getMatrixAt(i,matrix);
+                    new_mesh.setMatrixAt(i, matrix);
+                }
+
+                for(let i = this.instances_open_cylinder_size; i < this.instances_open_cylinder_capacity; i++)
+                {
+                    new_mesh.setMatrixAt(i,new THREE.Matrix4(0));
+                }
+
+            }
+
+            this.instancedOpenCylinder = new_mesh;
+        }
+        //  Cylinder is pointing up.
+        let direction = end.clone().sub(start);
+        //new THREE.Vector3().len
+        let line_size = direction.length();
+
+        //
+        let axis_norm = direction.clone().cross(new THREE.Vector3(0,1,0)).normalize();
+        let angle = Math.acos(new THREE.Vector3(0,1,0).dot(direction)/line_size);
+        direction.normalize();
+
+        //console.log("angle",angle, direction, axis_norm, line_size);
+
+        //how to compose my scale position and rotation? 
+        let quaternion = new THREE.Quaternion().setFromAxisAngle(axis_norm, -angle);
+
+        let mc = new THREE.Matrix4().compose(start, quaternion, new THREE.Vector3(1, line_size, 1));
+        
+        this.instancedOpenCylinder.setMatrixAt(this.instances_open_cylinder_size++, mc);
+    }
+
+
     render()
     {
         return(
         <group>
-            {/* {this.instancedXYSphere !== undefined && <primitive object={this.instancedXYSphere} />} */}
+            <primitive object={this.instancedOpenCylinder}></primitive>
             <primitive object={this.instancedXYSphere}></primitive>
         </group>
         );
@@ -130,6 +180,7 @@ class InstanceMachine extends React.Component {
     render_to_scene(scene)
     {
         scene.add(this.instancedXYSphere);
+        scene.add(this.instancedOpenCylinder);
     }
 
 };
