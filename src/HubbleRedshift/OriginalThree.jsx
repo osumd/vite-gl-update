@@ -18,33 +18,19 @@ import SphereSolid from '../../Primitives/SphereSolid.jsx';
 import './HubbleRedshift.css'
 
 
-// Create a global scene context to prevent
-// javashift from piling it out.
-let scene_context_created = 0;
-
-// Create a global context edit identifer
-let context_edit = 0;
-
 function create_scene_context()
 {
     //may to need to create reference to scene and return it
-    
-    if ( scene_context_created != 0)
-    {
-        return scene_context_created;
-    }
-
     const instanceMachine = new InstanceMachine();
-    //instanceMachine.add_xy_sphere(new THREE.Vector3(0.0, 4.0, 0.0), 1.0);
+
+    instanceMachine.add_xy_sphere(new THREE.Vector3(0.0, 4.0, 0.0), 1.0);
     //instanceMachine.add_open_cylinder(new THREE.Vector3(0,0,0), new THREE.Vector3(1,0,0));
 
     // set up reusable text object
     let reusable_text = new ReusableText();
 
     const eventSystem = new EventSystem({instanceMachine, reusable_text});
-        
-    scene_context_created = {instanceMachine, eventSystem, reusable_text};
-
+    
     return {instanceMachine, eventSystem, reusable_text};
 }
 
@@ -95,37 +81,21 @@ function OriginalThree ()
             //scene context
             let scene_context = create_scene_context();
 
+            //scene_context.instanceMachine.primitive_reference["xy_sphere"].setMatrixAt(0, new THREE.Matrix4().setPosition(0,0,0));
+
+            //scene_context.instanceMachine.instancedXYSphere.setMatrixAt(0, new THREE.Matrix4().setPosition(0,3,0));
+
             // Set up ref to the camera
             scene_context.camera = camera;
 
-            
-            //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"x", distance:2 });
+            // Orthoview use.
             //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"y", distance:2 });
-            //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"z", distance:2 });
+            
+            scene_context.eventSystem.add_event({object: 0, duration: 1, primitive:"xy_sphere"},{attribute:"position", to: new THREE.Vector3(0,0,0)});  
 
             
-
-
-            if ( context_edit == 0)
-            {
-                
-                let sphere_solid = new SphereSolid(scene_context);
-                sphere_solid.generate_mesh();
-                
-
-                //scene_context.eventSystem.add_text({text:"hello",duration:1},{attribute:"position", to:new THREE.Vector3(1,1,1)});
-                
-            }
-            else if ( context_edit == 1)
-            {
-
-                
-                //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"x", distance:2 });
-                //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"y", distance:2 });
-                //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"z", distance:2 });
-            }
-            
-            context_edit++;
+            //let sphere_solid = new SphereSolid(scene_context);
+            //sphere_solid.generate_mesh();
 
             //Font loading
             
@@ -153,6 +123,7 @@ function OriginalThree ()
             
 
         },[]);
+
         return <div>
             <h1>dfa</h1>
             <h1>dfasdf</h1>

@@ -27,12 +27,19 @@ class InstanceMachine extends React.Component {
         this.instances_open_cylinder_capacity = 10;
         this.instancedOpenCylinder = new THREE.InstancedMesh(this.open_cylinder_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_open_cylinder_capacity  );
 
+        
         //bitmap font location
 
 
         //sizes for the individual vectors
         this.instances_xy_spheres_size = 0;
         this.instances_open_cylinder_size = 0;
+
+        // A way to return the instanceMesh object based on its name.
+        this.primitive_reference = {
+            "open_cylinder": this.instancedOpenCylinder,
+            "xy_sphere": this.instancedXYSphere
+        };
 
         //set up map for instances with id's
         //let instanceIDs = {};
@@ -90,6 +97,7 @@ class InstanceMachine extends React.Component {
                     let matrix = new THREE.Matrix4();
 
                     this.instancedXYSphere.getMatrixAt(i,matrix);
+                    
                     new_mesh.setMatrixAt(i, matrix);
                 }
 
@@ -107,7 +115,7 @@ class InstanceMachine extends React.Component {
         m.setPosition(location);
         m.scale(new THREE.Vector3(radius,radius,radius));
 
-        //console.log(this.instances_xy_spheres_size);
+        console.log(this.instances_xy_spheres_size);
 
         this.instancedXYSphere.setMatrixAt(this.instances_xy_spheres_size, m);
         this.instancedXYSphere.instanceMatrix.needsUpdate= true;

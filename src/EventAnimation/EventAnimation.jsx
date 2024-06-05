@@ -12,8 +12,12 @@ class EventSystem extends React.Component{
 
         // Allow the scene context to propogate
         this.scene_context = scene_context;
-    //    console.log("Event System: Scene Context", this.scene_context);
+        console.log("Event System: Scene Context", this.scene_context);
         
+        
+        this.scene_context.instanceMachine.primitive_reference["xy_sphere"].setMatrixAt(0, new THREE.Matrix4().setPosition(0,2, 0));
+        
+
         this.paused = false;
 
         //events
@@ -25,17 +29,25 @@ class EventSystem extends React.Component{
 
         this.interval_tree = new interval_segment_tree();
         
+        //Supported primitive types.
+        this.supported_primitive_types = {
+            "open_cylinder": 0,
+            "xy_sphere": 1
+        };
+
         //animateable attributes
         this.animateable_attributes = {
             "position":this.update_object_position.bind(this), 
             "lookat":this.update_object_lookat.bind(this),
-            "orthoview":this.update_object_orthoview.bind(this) };
+            "orthoview":this.update_object_orthoview.bind(this)
+        };
         
         //get specific attributes from object
         this.retrievable_attributes = {
             "position": this.get_object_position.bind(this), 
             "lookat":this.get_object_lookat.bind(this),
-            "orthoview":this.get_object_orthoview.bind(this) };
+            "orthoview":this.get_object_orthoview.bind(this)
+        };
         //interpolation methods
         this.interpolation_methods = { "linear":this.linear_interpolation.bind(this) };
     
@@ -43,7 +55,7 @@ class EventSystem extends React.Component{
 
     // Adders | Add stuff to this this is a mess
 
-    add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false}, ...args )
+    add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false, primitive=false}, ...args )
     {
         console.log("Created");    
         /* console.log("Object: " + object);
@@ -55,6 +67,15 @@ class EventSystem extends React.Component{
         /* console.log("isref" + isRef); 
         console.log("isText", isText); */
         //resolve autos
+
+        // Condition to solve whether the primitive flag is set, and the primitive is not an available primitive.
+
+        if ( primitive != false && this.supported_primitive_types[primitive] == undefined )
+        {
+            console.log("EVENT_SYSTEM: Denied primitive type!");
+            return;
+        }
+
         //if the object is undefined which is the only hard required arg return and die.
         if(object == undefined)
         {
@@ -145,7 +166,7 @@ class EventSystem extends React.Component{
 
             //console.log("EVENT_SYSTEM: Event added!");
             //push the event to the array
-            this.events.push({ head: {object,start,end, duration, isRef, isText}, attributes: arg_array });
+            this.events.push({ head: {object,start,end, duration, isRef, isText, primitive}, attributes: arg_array });
         }
         
         
@@ -172,6 +193,8 @@ class EventSystem extends React.Component{
 
     }
 
+
+
     //methods of interpolation
     linear_interpolation(from, to, t)
     {
@@ -192,10 +215,30 @@ class EventSystem extends React.Component{
             return head.object.current.position.clone();
         }else if (head.isText == true )
         {
-            
             let object = this.scene_context.reusable_text.get_text(head.object);
             
             return object.position.clone();
+        }
+        else if ( head.primitive != false )
+        {
+            // Uses the get world functionality by indexing by primitive type.
+            let position = new THREE.Vector3();
+            let quaternion = new THREE.Quaternion();
+            let scale = new THREE.Vector3();
+
+            let primitive_instanced = this.scene_context.instanceMachine.primitive_reference[head.primitive];
+
+            console.log("EVENT_SYSTEM: primitive instanced : ", primitive_instanced);
+
+            let instanceMatrix = new THREE.Matrix4();
+            primitive_instanced.getMatrixAt(head.object, instanceMatrix);
+            console.log("EVENT_SYSTEM: primtive matrix", primitive_instanced);
+
+            instanceMatrix.decompose(position, quaternion, scale);
+            console.log("EVENT_SYSTEM: decomposition: ", position, quaternion, scale);
+
+            return position;
+
         }else
         {
             return head.object.position.clone();
@@ -230,6 +273,33 @@ class EventSystem extends React.Component{
 
             object.position.set(x,y,z);
             
+        }
+        else if ( head.primitive != false )
+        {
+            
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.to.z, t);
+
+            let instance_matrix = new THREE.Matrix4();
+
+            this.scene_context.instanceMachine.primitive_reference[head.primitive].getMatrixAt(head.object, instance_matrix);
+            
+            let position = new THREE.Vector3();
+            let quaternion = new THREE.Quaternion();
+            let scale = new THREE.Vector3();
+            
+            instance_matrix.decompose(position, quaternion, scale);
+
+            position.set(x,y,z);
+            instance_matrix.compose(position, quaternion, scale);
+
+            this.scene_context.instanceMachine.primitive_reference[head.primitive].setMatrixAt(head.object, instance_matrix);
+
+            this.scene_context.instanceMachine.primitive_reference[head.primitive].instanceMatrix.needsUpdate = true;
+
         }else
         {
             //set easing from attribute arg
@@ -434,9 +504,6 @@ class EventSystem extends React.Component{
                     {
 
                         event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
-
-
-                        
 
                         event_attributes[attribute_index].init = true;
                     }

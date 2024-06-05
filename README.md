@@ -60,8 +60,14 @@ algorithm just use a center for the first implementation.
 
 Then also denote the adjacency of the sections, so that edges in their respective section can be connected to form the faces.
 
-# Need a fix for instance machine resizing.
+# Creation and deletion system.
+an event must also consititute creation events rather than manipulations,
+and if no inital state or to state is given, then it is spawned where ever the cursor is in this case its 0,0,0
 
+
+
+# Need a fix for instance machine resizing.
+fixed.
 
 
 # REFACTORS

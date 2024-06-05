@@ -36,7 +36,7 @@ class SphereSolid
             let current_row = 0;
             let current_column = 0;
 
-            this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3(1,1,1)});
+            
 
             // Generate the sections
             for ( let i = 0; i < n ; i++)
@@ -58,6 +58,10 @@ class SphereSolid
                     // The section is defined as the bounds from x and x+1, and y and y+1
 
                     let area = [x,y,x1,y1];
+
+                    //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3(x+(1/(2*n)),y+(1/(2*n)),1)});
+
+                    
 
                     //console.log("x: ", x);
 
