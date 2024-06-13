@@ -44,10 +44,13 @@ class ReusableText extends React.Component {
         this.text_objects[text_id].text = text;
         this.text_objects[text_id].fontSize = size;
 
+        
 
         this.text_objects[text_id].anchorX = "center";
-        //this.text_objects[text_id].anchorY = "middle";
-        //this.text_objects[text_id].position = position;
+        this.text_objects[text_id].anchorY = "middle";
+        this.text_objects[text_id].position.x = position.x;
+        this.text_objects[text_id].position.y = position.y;
+        this.text_objects[text_id].position.z = position.z;
         //this.text_objects[text_id].rotation = rotation;
         //this.text_objects[text_id].quaternion = quaternion;
 

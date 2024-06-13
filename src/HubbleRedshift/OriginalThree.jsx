@@ -23,7 +23,7 @@ function create_scene_context()
     //may to need to create reference to scene and return it
     const instanceMachine = new InstanceMachine();
 
-    instanceMachine.add_xy_sphere(new THREE.Vector3(0.0, 4.0, 0.0), 1.0);
+    //instanceMachine.add_xy_sphere(new THREE.Vector3(0.0, 4.0, 0.0), 0.0);
     //instanceMachine.add_open_cylinder(new THREE.Vector3(0,0,0), new THREE.Vector3(1,0,0));
 
     // set up reusable text object
@@ -81,6 +81,12 @@ function OriginalThree ()
             //scene context
             let scene_context = create_scene_context();
 
+            // Test animation groups
+            //scene_context.eventSystem.add_animation_group();
+            //scene_context.eventSystem.add_text({text:"hello_world", duration: 1}, {attribute:"scale", from: new THREE.Vector3(0,0,0), to: new THREE.Vector3(1,1,1)} );
+
+            //scene_context.eventSystem.dispose_animation_group();
+
             //scene_context.instanceMachine.primitive_reference["xy_sphere"].setMatrixAt(0, new THREE.Matrix4().setPosition(0,0,0));
 
             //scene_context.instanceMachine.instancedXYSphere.setMatrixAt(0, new THREE.Matrix4().setPosition(0,3,0));
@@ -91,11 +97,11 @@ function OriginalThree ()
             // Orthoview use.
             //scene_context.eventSystem.add_event({ object: camera, duration: 1 }, { attribute: "orthoview", to:cube.position.clone(), axis:"y", distance:2 });
             
-            scene_context.eventSystem.add_event({object: 0, duration: 1, primitive:"xy_sphere"},{attribute:"position", to: new THREE.Vector3(0,0,0)});  
+            //scene_context.eventSystem.add_event({object: 0, duration: 1, primitive:"xy_sphere"},{attribute:"position", to: new THREE.Vector3(0,0,0)});  
 
             
-            //let sphere_solid = new SphereSolid(scene_context);
-            //sphere_solid.generate_mesh();
+            let sphere_solid = new SphereSolid(scene_context);
+            sphere_solid.generate_mesh();
 
             //Font loading
             

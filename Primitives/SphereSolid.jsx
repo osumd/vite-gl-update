@@ -46,6 +46,7 @@ class SphereSolid
                 let x1 = ((i+1)/n);
                 let xn = ((i-1)/n);
 
+                // Reset xn if automatically out of bounds.
                 if ( xn < 0 ){ xn = 0 }
 
                 for ( let j = 0; j < (n/2); j ++)
@@ -61,8 +62,6 @@ class SphereSolid
 
                     //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3(x+(1/(2*n)),y+(1/(2*n)),1)});
 
-                    
-
                     //console.log("x: ", x);
 
                     this.scene_context.instanceMachine.add_open_cylinder(new THREE.Vector3(x,yn,0), new THREE.Vector3(x1,yn,0));
@@ -75,10 +74,12 @@ class SphereSolid
 
                     
 
-
+                   //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:0.1},{attribute:"position", to:new THREE.Vector3(x,y,1)});
                     
-   
-                    
+                    // Add text
+                    //this.scene_context.eventSystem.add_animation_group();
+                    //this.scene_context.eventSystem.add_text({text: "o", duration: 0.1, size: 0.1, position: new THREE.Vector3(x+(1/(2*n)),y+(1/(n)),0)}, {attribute: "scale", from: new THREE.Vector3(0,0,0), to: new THREE.Vector3(1,1,1)});
+                    //this.scene_context.eventSystem.dispose_animation_group();
 
                     let neighbors = [];
 
@@ -86,9 +87,12 @@ class SphereSolid
                     {   
                         
                         let left = (current_column-1)*( n/2 ) + (current_row);
-                        neighbors.push(left);
 
-                        
+                        //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:0.1},{attribute:"position", to:new THREE.Vector3(x+(1/(2*n)),y+(1/(2*n)),1)})
+                        //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:0.1},{attribute:"position", to:new THREE.Vector3(xn+(1/(2*n)),y+(1/(2*n)),1)});
+                        //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3((x-1)+(1/(2*n)),y+(1/(2*n)),1)});
+                        //this.scene_context.eventSystem.add_text({text: "l", duration: 1, position: new THREE.Vector3((xn)+(1/(2*n)),y+(1/(2*n)),1), });
+                        neighbors.push(left);
 
                     }
 
@@ -110,12 +114,57 @@ class SphereSolid
                         neighbors.push(bottom);
                     }
 
+                    // Push the section 
+                    sections.push({area: area, neighbors: neighbors});
+
                     current_row++;
                 }
                 //Reset the column and row.
                 current_row = 0;
                 current_column++;
             }
+
+            
+            // Iterate through the sections and build faces by converting the a uv sphere to paramterized sphere which is
+            for( let s = 0; s < sections.length; s ++ )
+            {
+
+                // Find u and v of the center section by talking a half step in both directions.
+                let area = sections[s].area;
+                let u = area[0] + (area[2]-area[0])/2;
+                let v = area[1] + (area[3]-area[1])/2;
+
+                this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3(u,v,0), 0.03);
+
+                // Visit the center section  uv
+                this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3(u,v,1)});
+                //this.scene_context.eventSystem.add_animation_group();
+
+                for ( let n = 0; n < sections[s].neighbors.length; n++ )
+                {
+                    // Visit each neighbor to construct the desired face.
+                    // Get area of the neighbor
+                    let neighbor_index = sections[s].neighbors[n];
+                    // Get the neighbor area
+                    let neighbor_area = sections[neighbor_index].area;
+                    // Get the uv of the neighbor area
+                    let nu = neighbor_area[0] + ( neighbor_area[2] - neighbor_area[0] )/2;
+                    let nv = neighbor_area[1] + ( neighbor_area[3] - neighbor_area[1] )/2;
+
+                    //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3(nu,nv,1)});
+                    this.scene_context.eventSystem.add_text({text: neighbor_index.toString(), duration: 1, size: 0.1, position: new THREE.Vector3(nu,nv,0.1)}, {attribute: "scale", from: new THREE.Vector3(0,0,0), to: new THREE.Vector3(1,1,1)});
+                    
+
+                    //this.scene_context.eventSystem.add_event({object:this.scene_context.camera, duration:1},{attribute:"position", to:new THREE.Vector3(nu,nv,1)});
+                    
+                    
+                    
+                }
+                //this.scene_context.eventSystem.dispose_animation_group();
+
+
+            }
+
 
             //this.scene_context.instanceMachine
             

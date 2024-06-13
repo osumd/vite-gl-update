@@ -81,7 +81,7 @@ class InstanceMachine extends React.Component {
     add_xy_sphere(location, radius)
     {
 
-    
+        //console.log("INSTANCE_MACHINE: Added xy sphere");
         if(this.instances_xy_spheres_size == this.instances_xy_spheres_capacity)
         {
 
@@ -115,7 +115,7 @@ class InstanceMachine extends React.Component {
         m.setPosition(location);
         m.scale(new THREE.Vector3(radius,radius,radius));
 
-        console.log(this.instances_xy_spheres_size);
+//        console.log(this.instances_xy_spheres_size);
 
         this.instancedXYSphere.setMatrixAt(this.instances_xy_spheres_size, m);
         this.instancedXYSphere.instanceMatrix.needsUpdate= true;
@@ -173,7 +173,6 @@ class InstanceMachine extends React.Component {
         
         this.instancedOpenCylinder.setMatrixAt(this.instances_open_cylinder_size++, mc);
     }
-
 
     render()
     {

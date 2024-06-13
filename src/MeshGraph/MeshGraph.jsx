@@ -428,6 +428,7 @@ class MeshGraph extends React.Component {
     generate_mesh_debug_geometry()
     {
         let debug_geometry = new XYSphere({radius:1, widthSegments: 10, heightSegments: 10  });
+
         let debug_cylinder = new OpenCylinder();
 
         let instance_debug = new THREE.InstancedMesh(debug_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.nodes.length);
