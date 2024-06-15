@@ -30,7 +30,6 @@ class InstanceMachine extends React.Component {
         
         //bitmap font location
 
-
         //sizes for the individual vectors
         this.instances_xy_spheres_size = 0;
         this.instances_open_cylinder_size = 0;

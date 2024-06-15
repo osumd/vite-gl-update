@@ -106,6 +106,14 @@ class EventSystem extends React.Component{
         if(start == "auto")
         {
             start = this.events_time_end;
+        }else if(start == "last")
+        {
+            if ( this.events.length > 0 )
+            {
+                start = this.events[this.events.length-1].head.start;
+            } else {
+                start = this.events_time_end;
+            }
         }
 
         if(end == "auto")
@@ -247,7 +255,6 @@ class EventSystem extends React.Component{
             group_name = this.animation_group_index.toString();
             //console.log("ADD_ANIMATION_GROUP: Add group", group_name);
             this.animation_group_index++;
-            
         }
 
         // Otherwise push a new array to the animation group
@@ -297,12 +304,6 @@ class EventSystem extends React.Component{
         //console.log("f");
         // Group name is the head object.
         let group_name = head.object;
-    
-        // If the group name is zero then dispose the current animation group
-        if ( group_name == 0 )
-        {
-            group_name = this.current_animation_group;
-        }
 
         // Else we loop through the array in the hash map and depending on if the underlying type has a disposal method then we dispose of it.
         let group = this.animation_groups[group_name];
