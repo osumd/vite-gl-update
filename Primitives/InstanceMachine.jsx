@@ -21,7 +21,7 @@ class InstanceMachine extends React.Component {
         
         // the capacities for each geometry type and their instance 
 
-        this.instances_xy_spheres_capacity = 10;
+        this.instances_xy_spheres_capacity = 300;
         this.instancedXYSphere = new THREE.InstancedMesh(this.xy_sphere_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_xy_spheres_capacity);
         
         this.instances_open_cylinder_capacity = 10;

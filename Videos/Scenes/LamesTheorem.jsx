@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { attribute } from 'three/examples/jsm/nodes/Nodes.js';
 
 export default class LamesTheorem
 {
@@ -156,7 +157,18 @@ export default class LamesTheorem
             return 1;
         }
 
-        return this.fibonacci(n-1) + this.fibonacci(n-2);
+        //this.scene_context.eventSystem.add_event({object: this.scene_context.camera, duration: 1}, {attribute:"position", to: new THREE.Vector3(n,n,n)})
+        //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3(n,l,n), 0.1);
+        let fib_1 = this.fibonacci(n-1);
+        //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3(Math.cos(fib_1),0,0), 0.1);
+        let fib_2 = this.fibonacci(n-2);
+
+
+        //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3( (fib_1+fib_2)*Math.cos(fib_2/10)/10, 0,(fib_1+fib_2)*Math.sin(fib_2/10)/5), 0.1);
+        //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3( (fib_1+fib_2)*Math.sin(fib_2/10)/10, 0,(fib_1+fib_2)*Math.cos(fib_2/10)/5), 0.1);
+        //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3( (fib_1+fib_2)*Math.sin(fib_2/10), 0,(fib_1+fib_2)*Math.cos(fib_2/10)), 0.1);
+
+        return fib_1+fib_2;
         
     }
 
@@ -167,17 +179,17 @@ export default class LamesTheorem
 
         //let bezout = this.bezouts_identity(252,198);
         //console.log(Math.log10(198));
-        let a = 252;
-        let b = 198;
-        let alpha = (1+Math.sqrt(5))/2;
-        let n = this.euclidean_divisions(252, 198, 0);
-        
-        console.log(b >= this.fibonacci(n+1));
-        console.log(this.fibonacci(n+1) > Math.pow(alpha,n-1));
-        console.log(b > Math.pow(alpha, n-1));
+        //let a = 252;
+        //let b = 198;
+        //let alpha = (1+Math.sqrt(5))/2;
+        //let n = this.euclidean_divisions(252, 198, 0);
 
-        console.log(Math.log10(b) > (n-1)*Math.log10(alpha));
-        console.log(Math.log10(b) > (n-1)/5);
+        console.log(this.fibonacci(10));
+        //console.log(this.fibonacci(n+1) > Math.pow(alpha,n-1));
+        //console.log(b > Math.pow(alpha, n-1));
+
+        //console.log(Math.log10(b) > (n-1)*Math.log10(alpha));
+        //console.log(Math.log10(b) > (n-1)/5);
         
         
         

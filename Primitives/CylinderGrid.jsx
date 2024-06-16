@@ -4,6 +4,10 @@ import { ShaderMaterial, SphereGeometry } from 'three';
 import React from 'react';
 import { useRef } from 'react';
 
+// Import troika text
+import { Text } from 'troika-three-text';
+
+// Example of innefficent grid with no instancing, no shader grid generation etc, add text to to label the grid.
 
 class ElementMesh
 {
@@ -106,14 +110,12 @@ class ElementMesh
 
 class CylinderGrid {
 
-    constructor(  )
+    constructor( scene )
     {
-        this.volume_bottom = new THREE.Vector3(0,0,0);
-        this.volume_top = new THREE.Vector3(0,0,0);
+        this.scene = scene;
 
-        this.xdiv = xDivision;
-        this.ydiv = yDivisions;
-        this.radius = radius;   
+        this.volume_bottom = new THREE.Vector3(0,0,0);
+        this.volume_top = new THREE.Vector3(10,10,10);
 
         // Generate element mesh
         this.element_mesh = new ElementMesh();
@@ -121,11 +123,22 @@ class CylinderGrid {
         // Generate buffer geometry
         this.buffer_geometry = new THREE.BufferGeometry();
 
-        // Decompose the volume into its vertices
-        //this.volume_back = new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, this.volume_top.z);
-        //this.volume_right = new THREE.Vector3(this.volume_top.x, this.volume_bottom.y, this.volume_top.z);
-        //this.volume_ = new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, this.volume_top.z);
-        
+        // Refactor plan just store the xyz as an integer
+
+        // Define the volume lengths
+        this.volume_lengths = [
+            this.volume_top.x - this.volume_bottom.x,
+            this.volume_top.y - this.volume_bottom.y,
+            this.volume_top.z - this.volume_bottom.z
+        ]
+
+        // Define the division for each volume vector
+        this.volume_divisions = [
+            1, 1, 1
+        ];
+
+        // The divisions
+        this.radius = 0.1-(0.085); 
 
         // Array of two unit vectors for each face of the cube
         this.volume_unit_vectors = [
@@ -137,22 +150,40 @@ class CylinderGrid {
 
         // A map with specific face rendering options
         this.face_map = {
-            "front" : { unit_vectors: this.volume_unit_vectors[0], origin: this.volume_bottom.clone() },
-            "back" : { unit_vectors: this.volume_unit_vectors[0], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, this.volume_top.z) },
-            "left" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, this.volume_bottom.z) },
-            "right" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_top.y, this.volume_bottom.y, this.volume_bottom.z) },
-            "bottom" : { unit_vectors: this.volume_unit_vectors[2], origin: this.volume_bottom.clone() },
-            "top" : { unit_vectors: this.volume_unit_vectors[2], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_top.y, this.volume_bottom.z) },
+            "front" : { unit_vectors: this.volume_unit_vectors[0], origin: this.volume_bottom.clone(), vector_indices: [0, 1] },
+            "back" : { unit_vectors: this.volume_unit_vectors[0], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, -this.volume_top.z), vector_indices: [0, 1] },
+            "left" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, this.volume_bottom.z), vector_indices: [2, 1] },
+            "right" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_top.y, this.volume_bottom.y, this.volume_bottom.z), vector_indices: [2, 1] },
+            "bottom" : { unit_vectors: this.volume_unit_vectors[2], origin: this.volume_bottom.clone(), vector_indices: [0, 2] },
+            "top" : { unit_vectors: this.volume_unit_vectors[2], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_top.y, this.volume_bottom.z), vector_indices: [0, 2] },
         }
 
-        
+        // Custom offset vectors and orientation vectors for the tick labels, tick labels follow the divisions
+        this.tick_offset = [
+            new THREE.Vector3( 0,-1, 0 ),
+            new THREE.Vector3( -1, 0, 0 ),
+            new THREE.Vector3( -1, 0, 0),
+        ];
+
+        // Custom orientation or face value [ simple for now the vector could be anything ]
+        this.tick_orientation = [
+            new THREE.Vector3( 0,1,0 ),
+            new THREE.Vector3( 0,0,1 ),
+            new THREE.Vector3( 0,0,1 ),
+        ]
+
+        // Origin of the axes
+        this.axes_origin = new THREE.Vector3(0,0,0);
+
+        // List is faces to generate
+        this.generate_these_faces = ["left","back","right"]
         
     }
 
     quaternion_axis_angle(p_in, axis, angle, p_out)
     {
 
-        console.log(angle);
+       
         let q = new THREE.Vector4();
 
         let s = Math.sin(angle/2);
@@ -187,10 +218,7 @@ class CylinderGrid {
 
 
         let p_rotated = new THREE.Quaternion().setFromAxisAngle(axis,angle);
-        let p = new THREE.Quaternion(0,p_in.x, p_in.y, p_in.z);
-        let p_conj = p_rotated.clone().conjugate();
-
-        let thing = p_rotated.multiply(p).multiply(p_conj);
+        let thing = p_in.clone().applyQuaternion(p_rotated);
         
 
         p_out.x = thing.x;
@@ -202,12 +230,26 @@ class CylinderGrid {
     GenerateGrid(){
         
         // Access selected faces to gridify
-        // For each gridified face representation a binary digit represent front,back, left, right, bottom, top etc
-        
+        // for ( let f = 0 ; f < this.generate_these_faces.length; f ++ )
+        // {
+        //     this.Gridify_Face(this.generate_these_faces[f]);
+        // }
 
+        this.element_mesh.allocate_all( 4000 );
+        
+        this.GridifyFace("top");
+        this.GridifyFace("left");
+        this.GridifyFace("right");
+        this.GridifyFace("bottom");
+
+        this.GridifyFace("front");
+        this.GridifyFace("back");
+        
+        
+    
         this.buffer_geometry.setAttribute('position', new THREE.BufferAttribute(this.element_mesh.vertices, 3));
-        this.buffer_geometry.bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(this.element_mesh.normals, 3));
-        this.buffer_geometry.bufferGeometry.setAttribute('uv', new THREE.BufferAttribute(this.element_mesh.uvs, 2));
+        this.buffer_geometry.setAttribute('normal', new THREE.BufferAttribute(this.element_mesh.normals, 3));
+        this.buffer_geometry.setAttribute('uv', new THREE.BufferAttribute(this.element_mesh.uvs, 2));
         // Optional: Add indices to the geometry if you're using indexed geometry
         this.buffer_geometry.setIndex(new THREE.BufferAttribute(this.element_mesh.elements, 1));
 
@@ -216,14 +258,178 @@ class CylinderGrid {
 
     }
 
-    push_cylinder_back(start, end, radius, division)
+    GridifyFace(face_id)
     {
+
+        // Unpack the face map
+        let face = this.face_map[face_id];
+        
+        let vector_indices = face.vector_indices;
+        // Unpack the volume divisions
+        let div_i = this.volume_divisions[ vector_indices[0] ];
+        let div_j = this.volume_divisions[ vector_indices[1] ];
+        // Unpack the volume lengths
+        let len_i = this.volume_lengths[ vector_indices[0] ];
+        let len_j = this.volume_lengths[ vector_indices[1] ];
+        //Normalize the unit vectors to the indexes ratio
+        let unit0 = face.unit_vectors[0].clone().multiplyScalar(div_i);
+        let unit1 = face.unit_vectors[1].clone().multiplyScalar(div_j);
+        // Define the steps needed for the grid
+        let steps_i = len_i / div_i;
+        let steps_j = len_j / div_j;
+        
+       // console.log(steps_i);
+
+        for( let i = 0; i <= steps_i; i++)
+        {
+            let iunit = unit0.clone().multiplyScalar(i);
+            let origin = face.origin.clone().add(iunit);
+            let end = origin.clone().add(unit1.clone().normalize().multiplyScalar(len_j));
+            
+            this.push_cylinder_back( origin, end, this.radius, 5 );
+            
+        }
+
+        for ( let j = 0; j <= steps_j; j ++ )
+        {
+            // Get origin
+            
+            let junit = unit1.clone().multiplyScalar(j);
+
+            
+            let origin = face.origin.clone().add(junit);
+
+            let end = origin.clone().add(unit0.clone().normalize().multiplyScalar(len_i));
+            
+            this.push_cylinder_back( origin, end, this.radius, 5 );
+
+        }
+        
+
+
+        //Get the origin point
+
+
+
+
+
+
+
+    }
+
+    
+
+    AddText(text, size, position, orientation)
+    {
+
+        // Generate axis and angle for the orientation
+        let forward = new THREE.Vector3(0,0,1);
+        let axis = forward.clone().cross(orientation);
+        let angle = Math.acos( (forward.dot(orientation) ) / ( forward.length()*orientation.length() ) );
+
+        //Create the new text
+        let txt_obj = new Text();
+        txt_obj.text = text;
+        txt_obj.fontSize = size;
+
+    
+        txt_obj.anchorX = "center";
+        txt_obj.anchorY = "middle";
+        txt_obj.position.x = position.x;
+        txt_obj.position.y = position.y;
+        txt_obj.position.z = position.z;
+        
+        txt_obj.quaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+
+        txt_obj.sync();
+
+        this.scene.add(txt_obj);
+
+    }
+
+    GenerateAxes()
+    {
+        // For each volume unit vector generate cooresponding axes labeling with proportional text size.
+        //Lengths
+        let len_i = this.volume_lengths[0];
+        let len_j = this.volume_lengths[1];
+        let len_k = this.volume_lengths[2];
+        //Divisions
+        let div_i = this.volume_divisions[0];
+        let div_j = this.volume_divisions[1];
+        let div_k = this.volume_divisions[2];
+        //Tick amounts
+        let steps_i = Math.floor((len_i)/(div_i));
+        let steps_j = Math.floor((len_j)/(div_j));
+        let steps_k = Math.floor((len_k)/(div_k));
+        // Get unit vectors
+        let unit_i = this.volume_unit_vectors[0][0];
+        let unit_j = this.volume_unit_vectors[0][1];
+        let unit_k = this.volume_unit_vectors[2][1];
+        // Get offset vectors
+        let offset_i = this.tick_offset[0];
+        let offset_j = this.tick_offset[1];
+        let offset_k = this.tick_offset[2];
+        // Get orientations
+        let orientation_i = this.tick_orientation[0];
+        let orientation_j = this.tick_orientation[1];
+        let orientation_k = this.tick_orientation[2];
+        // Define axis text size
+        let font_size_i = 0.1;
+        let font_size_j = 0.1;
+        let font_size_k = 0.1;
+
+        for ( let i = 0 ; i < steps_i; i++ )
+        {
+            let iunit = unit_i.clone().multiplyScalar(i);
+            let origin = this.axes_origin.clone().add( iunit );
+            origin.add(offset_i);
+
+            this.AddText( (i*div_i).toString(),font_size_i, origin,   orientation_i);
+            
+
+        }
+
+        for ( let j = 0 ; j < steps_j; j++ )
+        {
+            let junit = unit_j.clone().multiplyScalar(j);
+            let origin = this.axes_origin.clone().add( junit );
+            origin.add(offset_j);
+
+            this.AddText( (j*div_j).toString(),font_size_j, origin,   orientation_j);
+            
+
+        }
+
+        for ( let k = 0 ; k < steps_k; k++ )
+        {
+            let kunit = unit_k.clone().multiplyScalar(k);
+            let origin = this.axes_origin.clone().add( kunit );
+            origin.add(offset_k);
+
+            this.AddText( (k*div_k).toString(),font_size_k, origin,   orientation_k);
+            
+
+        }
+
+
+    }
+
+    push_cylinder_back(start, end, radius, divisions)
+    {
+        // Clone and test end 
+        let clone_end = end.clone().normalize();
+    
         // Generate cylinder axis, and axis_norm.
         let axis = end.clone().sub(start).normalize();
         let axis_norm = axis.clone().cross(new THREE.Vector3(axis.x + 0.1 , axis.y + 0.1, axis.z + 0.1)).normalize();
-        
-        let dr = (Math.PI*2)/divisions;
 
+        if ( clone_end.x == clone_end.y && clone_end.y == clone_end.z )
+        {
+            axis_norm = axis.clone().cross(new THREE.Vector3(axis.x + 0.1 , axis.y + 0.0, axis.z + 0.1)).normalize();
+        }
+
+        let dr = (Math.PI*2)/divisions;
 
         let p0 = new THREE.Vector3(0,0,0);
         let p1 = new THREE.Vector3(0,0,0);
@@ -251,13 +457,13 @@ class CylinderGrid {
             
             this.quaternion_axis_angle(axis_norm, axis, a1, temp);
 
-            p2.x = end.x + temp.x;
-            p2.y = end.y + temp.y;
-            p2.z = end.z+ temp.z;
+            p2.x = end.x + temp.x*radius;
+            p2.y = end.y + temp.y*radius;
+            p2.z = end.z+ temp.z*radius;
             
-            p3.x = start.x + temp.x;
-            p3.y = start.y + temp.y;
-            p3.z = start.z+ temp.z;
+            p3.x = start.x + temp.x*radius;
+            p3.y = start.y + temp.y*radius;
+            p3.z = start.z+ temp.z*radius;
 
             
             //console.log(axis_norm);
@@ -281,12 +487,12 @@ class CylinderGrid {
             this.element_mesh.push_normal(n.x, n.y, n.z);
             this.element_mesh.push_normal(n.x, n.y, n.z);
 
-            this.elements_mesh.push_element(this.element_mesh.index_slot1);
-            this.elements_mesh.push_element(this.element_mesh.index_slot1+1);
-            this.elements_mesh.push_element(this.element_mesh.index_slot1+2);
-            this.elements_mesh.push_element(this.element_mesh.index_slot1);
-            this.elements_mesh.push_element(this.element_mesh.index_slot1+2);
-            this.elements_mesh.push_element(this.element_mesh.index_slot1+3);
+            this.element_mesh.push_element(this.element_mesh.index_slot1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+2);
+            this.element_mesh.push_element(this.element_mesh.index_slot1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+2);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+3);
 
             this.element_mesh.index_slot1 += 4;
             

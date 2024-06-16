@@ -78,7 +78,7 @@ function OriginalThree ()
             // Set up ref to the camera
             scene_context.camera = camera;
             
-            scene.add(new CylinderGrid().GenerateGrid())
+            scene.add(new CylinderGrid(scene).GenerateGrid())
             // Play a video.
             //let recurrence_relation_video = new RecurrenceRelationVideo(scene_context);
 

@@ -16,6 +16,9 @@ Then also denote the adjacency of the sections, so that edges in their respectiv
 
 
 ## Features: Data visualization grid.
+  features of a data visualization grid, accurate scaling for different data circumstances
+  easy to see the different measurement markers.
+  Next is labels
 
 ## Features: View frustrum relative placement.
    Need to get/place items relative to view frustrum, for a makeshift ui/ explainer / fitting.
