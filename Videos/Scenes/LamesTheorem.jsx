@@ -148,6 +148,7 @@ export default class LamesTheorem
     fibonacci(n)
     {
 
+        
         if ( n == 0 )
         {
             return 0;
@@ -162,7 +163,6 @@ export default class LamesTheorem
         let fib_1 = this.fibonacci(n-1);
         //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3(Math.cos(fib_1),0,0), 0.1);
         let fib_2 = this.fibonacci(n-2);
-
 
         //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3( (fib_1+fib_2)*Math.cos(fib_2/10)/10, 0,(fib_1+fib_2)*Math.sin(fib_2/10)/5), 0.1);
         //this.scene_context.instanceMachine.add_xy_sphere(new THREE.Vector3( (fib_1+fib_2)*Math.sin(fib_2/10)/10, 0,(fib_1+fib_2)*Math.cos(fib_2/10)/5), 0.1);
@@ -184,7 +184,7 @@ export default class LamesTheorem
         //let alpha = (1+Math.sqrt(5))/2;
         //let n = this.euclidean_divisions(252, 198, 0);
 
-        console.log(this.fibonacci(10));
+        //console.log(this.fibonacci(10));
         //console.log(this.fibonacci(n+1) > Math.pow(alpha,n-1));
         //console.log(b > Math.pow(alpha, n-1));
 

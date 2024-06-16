@@ -2,6 +2,8 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+const canvas = document.createElement('canvas');
+const context = canvas.getContext('webgl2');
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import InstanceMachine from '../../Primitives/InstanceMachine';
@@ -15,12 +17,9 @@ import ReusableText from '../../Primitives/ReuseableText.jsx';
 // Import my first video into the original three
 import RecurrenceRelationVideo from '../../Videos/ReccurenceRelations.jsx';"../../Videos/ReccurenceRelations.jsx";
 
-import CylinderGrid from '../../Primitives/CylinderGrid.jsx';
-
+import FibbonaciMap from '../../Videos/Scenes/FibbonaciMap.jsx';
 
 import './HubbleRedshift.css'
-
-
 
 function create_scene_context()
 {
@@ -78,7 +77,9 @@ function OriginalThree ()
             // Set up ref to the camera
             scene_context.camera = camera;
             
-            scene.add(new CylinderGrid(scene).GenerateGrid())
+            new FibbonaciMap().test_writing_to_texture(scene);
+
+            //scene.add(new CylinderGrid(scene).GenerateGrid())
             // Play a video.
             //let recurrence_relation_video = new RecurrenceRelationVideo(scene_context);
 

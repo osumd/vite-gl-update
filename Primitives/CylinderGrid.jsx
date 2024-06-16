@@ -115,7 +115,7 @@ class CylinderGrid {
         this.scene = scene;
 
         this.volume_bottom = new THREE.Vector3(0,0,0);
-        this.volume_top = new THREE.Vector3(10,10,10);
+        this.volume_top = new THREE.Vector3(5,5,5);
 
         // Generate element mesh
         this.element_mesh = new ElementMesh();
@@ -134,7 +134,7 @@ class CylinderGrid {
 
         // Define the division for each volume vector
         this.volume_divisions = [
-            1, 1, 1
+            0.5, 0.5, 0.5
         ];
 
         // The divisions
@@ -153,14 +153,14 @@ class CylinderGrid {
             "front" : { unit_vectors: this.volume_unit_vectors[0], origin: this.volume_bottom.clone(), vector_indices: [0, 1] },
             "back" : { unit_vectors: this.volume_unit_vectors[0], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, -this.volume_top.z), vector_indices: [0, 1] },
             "left" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_bottom.y, this.volume_bottom.z), vector_indices: [2, 1] },
-            "right" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_top.y, this.volume_bottom.y, this.volume_bottom.z), vector_indices: [2, 1] },
+            "right" : { unit_vectors: this.volume_unit_vectors[1], origin: new THREE.Vector3(this.volume_top.x, this.volume_bottom.y, this.volume_bottom.z), vector_indices: [2, 1] },
             "bottom" : { unit_vectors: this.volume_unit_vectors[2], origin: this.volume_bottom.clone(), vector_indices: [0, 2] },
             "top" : { unit_vectors: this.volume_unit_vectors[2], origin: new THREE.Vector3(this.volume_bottom.x, this.volume_top.y, this.volume_bottom.z), vector_indices: [0, 2] },
         }
 
         // Custom offset vectors and orientation vectors for the tick labels, tick labels follow the divisions
         this.tick_offset = [
-            new THREE.Vector3( 0,-1, 0 ),
+            new THREE.Vector3( 0, 0, 1 ),
             new THREE.Vector3( -1, 0, 0 ),
             new THREE.Vector3( -1, 0, 0),
         ];
@@ -169,11 +169,11 @@ class CylinderGrid {
         this.tick_orientation = [
             new THREE.Vector3( 0,1,0 ),
             new THREE.Vector3( 0,0,1 ),
-            new THREE.Vector3( 0,0,1 ),
+            new THREE.Vector3( 0,1,0 ),
         ]
 
         // Origin of the axes
-        this.axes_origin = new THREE.Vector3(0,0,0);
+        this.axes_origin = new THREE.Vector3(0.5,0,0);
 
         // List is faces to generate
         this.generate_these_faces = ["left","back","right"]
@@ -235,7 +235,7 @@ class CylinderGrid {
         //     this.Gridify_Face(this.generate_these_faces[f]);
         // }
 
-        this.element_mesh.allocate_all( 4000 );
+        this.element_mesh.allocate_all( 6000 );
         
         this.GridifyFace("top");
         this.GridifyFace("left");
@@ -245,7 +245,8 @@ class CylinderGrid {
         this.GridifyFace("front");
         this.GridifyFace("back");
         
-        
+        // Generate the Axes
+        this.GenerateAxes();
     
         this.buffer_geometry.setAttribute('position', new THREE.BufferAttribute(this.element_mesh.vertices, 3));
         this.buffer_geometry.setAttribute('normal', new THREE.BufferAttribute(this.element_mesh.normals, 3));
@@ -272,19 +273,23 @@ class CylinderGrid {
         let len_i = this.volume_lengths[ vector_indices[0] ];
         let len_j = this.volume_lengths[ vector_indices[1] ];
         //Normalize the unit vectors to the indexes ratio
-        let unit0 = face.unit_vectors[0].clone().multiplyScalar(div_i);
-        let unit1 = face.unit_vectors[1].clone().multiplyScalar(div_j);
+        let unit0 = face.unit_vectors[0].clone();
+        let unit1 = face.unit_vectors[1].clone();
         // Define the steps needed for the grid
         let steps_i = len_i / div_i;
         let steps_j = len_j / div_j;
         
+        //console.log(len_i, len_j, unit0, unit1);
+
        // console.log(steps_i);
 
         for( let i = 0; i <= steps_i; i++)
         {
-            let iunit = unit0.clone().multiplyScalar(i);
+            let iunit = unit0.clone().multiplyScalar(i*div_i);
             let origin = face.origin.clone().add(iunit);
-            let end = origin.clone().add(unit1.clone().normalize().multiplyScalar(len_j));
+
+            
+            let end = origin.clone().add(unit1.clone().multiplyScalar(len_j));
             
             this.push_cylinder_back( origin, end, this.radius, 5 );
             
@@ -294,12 +299,12 @@ class CylinderGrid {
         {
             // Get origin
             
-            let junit = unit1.clone().multiplyScalar(j);
+            let junit = unit1.clone().multiplyScalar(j*div_j);
 
             
             let origin = face.origin.clone().add(junit);
 
-            let end = origin.clone().add(unit0.clone().normalize().multiplyScalar(len_i));
+            let end = origin.clone().add(unit0.clone().multiplyScalar(len_i));
             
             this.push_cylinder_back( origin, end, this.radius, 5 );
 
@@ -317,11 +322,10 @@ class CylinderGrid {
 
     }
 
-    
 
     AddText(text, size, position, orientation)
     {
-
+    //    console.log(text,size, position, orientation);
         // Generate axis and angle for the orientation
         let forward = new THREE.Vector3(0,0,1);
         let axis = forward.clone().cross(orientation);
@@ -339,7 +343,11 @@ class CylinderGrid {
         txt_obj.position.y = position.y;
         txt_obj.position.z = position.z;
         
-        txt_obj.quaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+        let quat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+        txt_obj.quaternion.x = quat.x;
+        txt_obj.quaternion.y = quat.y;
+        txt_obj.quaternion.z = quat.z;
+        //txt_obj.quaternion.set(  );
 
         txt_obj.sync();
 
@@ -375,24 +383,23 @@ class CylinderGrid {
         let orientation_j = this.tick_orientation[1];
         let orientation_k = this.tick_orientation[2];
         // Define axis text size
-        let font_size_i = 0.1;
-        let font_size_j = 0.1;
-        let font_size_k = 0.1;
+        let font_size_i = div_i - (0.5 * div_i);
+        let font_size_j = div_j - (0.5 * div_i);
+        let font_size_k = div_k - (0.5 * div_i);
 
-        for ( let i = 0 ; i < steps_i; i++ )
+        for ( let i = 0; i <= steps_i; i++ )
         {
-            let iunit = unit_i.clone().multiplyScalar(i);
+            let iunit = unit_i.clone().multiplyScalar(i*div_i);
             let origin = this.axes_origin.clone().add( iunit );
             origin.add(offset_i);
 
-            this.AddText( (i*div_i).toString(),font_size_i, origin,   orientation_i);
+            this.AddText( ( i*div_i ).toString(),font_size_i, origin,   orientation_i);
             
-
         }
 
-        for ( let j = 0 ; j < steps_j; j++ )
+        for ( let j = 0 ; j <= steps_j; j++ )
         {
-            let junit = unit_j.clone().multiplyScalar(j);
+            let junit = unit_j.clone().multiplyScalar(j*div_j);
             let origin = this.axes_origin.clone().add( junit );
             origin.add(offset_j);
 
@@ -401,9 +408,9 @@ class CylinderGrid {
 
         }
 
-        for ( let k = 0 ; k < steps_k; k++ )
+        for ( let k = 0 ; k <= steps_k; k++ )
         {
-            let kunit = unit_k.clone().multiplyScalar(k);
+            let kunit = unit_k.clone().multiplyScalar((k*div_k));
             let origin = this.axes_origin.clone().add( kunit );
             origin.add(offset_k);
 
@@ -412,11 +419,172 @@ class CylinderGrid {
 
         }
 
+        this.push_back_axis( this.axes_origin.clone(), this.axes_origin.clone().add(unit_i.multiplyScalar(len_i)), 0.1, 5 ); 
+
+        this.push_back_axis( this.axes_origin.clone(), this.axes_origin.clone().add(unit_j.multiplyScalar(len_j)), 0.1, 5 ); 
+
+        this.push_back_axis( this.axes_origin.clone(), this.axes_origin.clone().add(unit_k.multiplyScalar(len_k)), 0.1, 5 ); 
+
+
+    }
+
+    push_back_axis(start, end, radius, divisions)
+    {
+        // Clone and test end 
+        let clone_end = end.clone().normalize();
+    
+        // Generate cylinder axis, and axis_norm.
+        let axis = end.clone().sub(start).normalize();
+        let axis_norm = axis.clone().cross(new THREE.Vector3(axis.x + 0.1 , axis.y + 0.1, axis.z + 0.1)).normalize();
+
+        if ( clone_end.x == clone_end.y && clone_end.y == clone_end.z )
+        {
+            axis_norm = axis.clone().cross(new THREE.Vector3(axis.x + 0.1 , axis.y + 0.0, axis.z + 0.1)).normalize();
+        }
+
+        let dr = (Math.PI*2)/divisions;
+
+        let p0 = new THREE.Vector3(0,0,0);
+        let p1 = new THREE.Vector3(0,0,0);
+        let p2 = new THREE.Vector3(0,0,0);
+        let p3 = new THREE.Vector3(0,0,0);
+        
+        let temp = new THREE.Vector3(0,0,0);
+
+        let axis_tip_length =  ( end.clone().sub(start).length() )*0.1;
+
+        console.log(axis_tip_length);
+
+        
+        end = end.clone().sub( axis.clone().multiplyScalar(axis_tip_length) );
+
+        for(var i = 0; i < divisions; i++)
+        {
+            // First angle and second angle.
+            var a0 = i*dr;
+            var a1 = (i+1)*dr;
+            
+            // Rotate norm vector
+            this.quaternion_axis_angle(axis_norm, axis, a0, temp);
+            //console.log(temp);
+            p0.x = start.x + temp.x*radius;
+            p0.y = start.y + temp.y*radius;
+            p0.z = start.z + temp.z*radius;
+
+            p1.x = end.x + temp.x*radius;
+            p1.y = end.y + temp.y*radius;
+            p1.z = end.z + temp.z*radius;
+            
+            this.quaternion_axis_angle(axis_norm, axis, a1, temp);
+
+            p2.x = end.x + temp.x*radius;
+            p2.y = end.y + temp.y*radius;
+            p2.z = end.z + temp.z*radius;
+            
+            p3.x = start.x + temp.x*radius;
+            p3.y = start.y + temp.y*radius;
+            p3.z = start.z + temp.z*radius;
+
+            //console.log(axis_norm);
+
+            //console.log(p0,p1,p2,p3);
+
+            this.element_mesh.push_vertex(p0.x, p0.y, p0.z);
+            this.element_mesh.push_vertex(p1.x, p1.y, p1.z);
+            this.element_mesh.push_vertex(p2.x, p2.y, p2.z);
+            this.element_mesh.push_vertex(p3.x, p3.y, p3.z);
+
+            this.element_mesh.push_uv(0,0);
+            this.element_mesh.push_uv(1,0);
+            this.element_mesh.push_uv(1,1);
+            this.element_mesh.push_uv(0,1);
+
+            var n = p1.sub(p0).cross(p3.sub(p0)).normalize();
+
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+
+            this.element_mesh.push_element(this.element_mesh.index_slot1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+2);
+            this.element_mesh.push_element(this.element_mesh.index_slot1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+2);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+3);
+
+            this.element_mesh.index_slot1 += 4;
+            
+        }
+
+        start = end;
+        end = end.clone().add( axis.clone().multiplyScalar(axis_tip_length));
+
+        for(var i = 0; i < divisions; i++)
+        {
+            // First angle and second angle.
+            var a0 = i*dr;
+            var a1 = (i+1)*dr;
+            
+            // Rotate norm vector
+            this.quaternion_axis_angle(axis_norm, axis, a0, temp);
+            //console.log(temp);
+            p0.x = start.x + temp.x*radius*2.0;
+            p0.y = start.y + temp.y*radius*2.0;
+            p0.z = start.z + temp.z*radius*2.0;
+
+            p1.x = end.x + temp.x*0.001;
+            p1.y = end.y + temp.y*0.001;
+            p1.z = end.z + temp.z*0.001;
+            
+            this.quaternion_axis_angle(axis_norm, axis, a1, temp);
+
+            p2.x = end.x + temp.x*0.001;
+            p2.y = end.y + temp.y*0.001;
+            p2.z = end.z + temp.z*0.001
+            
+            p3.x = start.x + temp.x*radius*2.0;
+            p3.y = start.y + temp.y*radius*2.0;
+            p3.z = start.z + temp.z*radius*2.0;
+
+            //console.log(axis_norm);
+
+            //console.log(p0,p1,p2,p3);
+
+            this.element_mesh.push_vertex(p0.x, p0.y, p0.z);
+            this.element_mesh.push_vertex(p1.x, p1.y, p1.z);
+            this.element_mesh.push_vertex(p2.x, p2.y, p2.z);
+            this.element_mesh.push_vertex(p3.x, p3.y, p3.z);
+
+            this.element_mesh.push_uv(0,0);
+            this.element_mesh.push_uv(1,0);
+            this.element_mesh.push_uv(1,1);
+            this.element_mesh.push_uv(0,1);
+
+            var n = p1.sub(p0).cross(p3.sub(p0)).normalize();
+
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+            this.element_mesh.push_normal(n.x, n.y, n.z);
+
+            this.element_mesh.push_element(this.element_mesh.index_slot1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+2);
+            this.element_mesh.push_element(this.element_mesh.index_slot1);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+2);
+            this.element_mesh.push_element(this.element_mesh.index_slot1+3);
+
+            this.element_mesh.index_slot1 += 4;
+            
+        }
+
 
     }
 
     push_cylinder_back(start, end, radius, divisions)
     {
+        
         // Clone and test end 
         let clone_end = end.clone().normalize();
     
@@ -459,11 +627,11 @@ class CylinderGrid {
 
             p2.x = end.x + temp.x*radius;
             p2.y = end.y + temp.y*radius;
-            p2.z = end.z+ temp.z*radius;
+            p2.z = end.z + temp.z*radius;
             
             p3.x = start.x + temp.x*radius;
             p3.y = start.y + temp.y*radius;
-            p3.z = start.z+ temp.z*radius;
+            p3.z = start.z + temp.z*radius;
 
             
             //console.log(axis_norm);
