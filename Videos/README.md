@@ -42,8 +42,4 @@ Notes - Descriptions
             problem: the results are written directly to textures on the gpu which is costly for the cpu to read in order to for example sync up a camera for the journey!
     
     lets try option 2
-        
-        convert the triangles to planes.
-        connect the planes along the curve.
-        use spheres instead of circles
         add lighting, then expand to higher resolutions.

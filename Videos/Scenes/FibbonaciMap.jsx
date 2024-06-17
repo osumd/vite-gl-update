@@ -52,6 +52,8 @@ export default class FibbonaciMap
                 // Stores the end limit for each range including the previous range for primitive counts.
                 uniform sampler2D primitive_id_map;
 
+                uniform float max_primitives;
+
                 // Sequence map texture.
                 uniform sampler2D sequence_map;
 
@@ -101,8 +103,6 @@ export default class FibbonaciMap
 
                 void main() {
 
-
-
                     // Primitive type.
                     int primitive_type = 4;
                 
@@ -118,14 +118,6 @@ export default class FibbonaciMap
                     // The sequence index
                     int sequence_id = get_sequence_id(primitive_id);
 
-                    // Globals up here
-                    int max_primitives = int( texelFetch(primitive_id_map, ivec2(number_of_sequences, 0), 0).x );
-                    float global_t = float(primitive_id)/float(max_primitives);
-                    float global_t_1 = float(primitive_id+1)/float(max_primitives);
-
-                    // Sphere radius
-                    float sphere_radius = texelFetch(sequence_map, ivec2(sequence_id, 0), 0).x;
-
                     // Resolutions of the current curve
                     float resolution = texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x;
 
@@ -133,11 +125,14 @@ export default class FibbonaciMap
                     int current_end_range = int(texelFetch(primitive_id_map, ivec2(sequence_id, 0), 0).x);
                     int current_resolution = int(texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x);
 
-                    
-
-                
                     float t = 1.0-(float(current_end_range - primitive_id)/float(current_resolution));
                     float t1 = 1.0-(float(current_end_range - (primitive_id+1))/float(current_resolution));
+
+                    // Sphere radius
+                    float current_sphere_radius = texelFetch(sequence_map, ivec2(sequence_id, 0), 0).x;
+
+                    float next_radius = current_sphere_radius*t1;
+                    float sphere_radius = current_sphere_radius*t;
                     
                     // Getting current transform
                     vec3 v0 = texelFetch(sequence_transforms, ivec2( (sequence_id*4), 0), 0).xyz;
@@ -149,42 +144,50 @@ export default class FibbonaciMap
                     float sphere_arc_length = texelFetch(sequence_arc_lengths, ivec2(sequence_id, 0), 0).x;
 
                     // Current theta
-                    
-                    float current_theta = global_t*sphere_arc_length*6.28318530718;
-                    float next_theta =  global_t_1*sphere_arc_length*6.28318530718;
+                    float current_theta = t*(sphere_arc_length*6.28318530718);
+                    float next_theta =  t1*(sphere_arc_length*6.28318530718);
+
+                    // Current Phi
+                    float current_phi = 1.0;
                     
                     vec4 color = vec4(0, 0, 0, 1);
-
-
 
                     if ( vertex_id == 0 )
                     {
                         
-                        vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta) + v2*(float(sequence_id));
+                        vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta) + v2;
+                        position = o +  v0*sphere_radius*cos(current_theta)*sin(current_phi) + v1*sphere_radius*sin(current_theta)*sin(current_phi) + v2*sphere_radius*cos(current_phi);
                         color = vec4(position, 1);
 
                     }
                     if ( vertex_id == 1 )
                     {
-                        vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta) + v2*(float(sequence_id)) + vec3(0.5,0,0);
+                        vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta)  + vec3(0.1,0,0) + v2;
+                        position = o + v0*sphere_radius*cos(current_theta)*sin(current_phi) + v1*sphere_radius*sin(current_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*sphere_radius*cos(current_phi);
                         color = vec4(position, 1);
                         
                     }
                     if ( vertex_id == 2 )
                     {
-                        vec3 position = v0*sphere_radius*cos(next_theta) + v1*sphere_radius*sin(next_theta) + v2*(float(sequence_id));
+                        vec3 position = v0*next_radius*cos(next_theta) + v1*next_radius*sin(next_theta) + v2 ;
+                        position = o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi) + v2*next_radius*cos(current_phi) ;
                         color = vec4(position, 1);
                         
                     }
                     if ( vertex_id == 3 )
                     {
-                        vec3 position = v0*sphere_radius*cos(next_theta) + v1*sphere_radius*sin(next_theta) + v2*(float(sequence_id)) + vec3(0.5,0,0);;
+                        vec3 position = o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*next_radius*cos(current_phi);
                         color = vec4(position, 1);
                     }
-                    
 
-                    
 
+                    // Getting primitive limits
+                    if ( primitive_id+2 >= current_end_range-1 )
+                    {
+                        color = vec4( o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*next_radius*cos(current_phi), 0);
+                    }
+                    
+                    
 
                     //color = vec4(float(sphere_arc_length),0,0,1);
                     //color = texelFetch(sequence_arc_lengths, ivec2(gl_FragCoord.x, 0), 0);
@@ -199,7 +202,7 @@ export default class FibbonaciMap
                     //color = vec4(float(current_end_range)/1000.0, 0,0,1);
                     //color = vec4(float(p.x)/10000.0, 0,0,0);
        
-                    color = vec4( float(global_t),0,0, 1 );
+                    //color = vec4( float(t),0,0, 1 );
                     //color = texture(sequence_transforms, vUv);
    
                     gl_FragColor = color;
@@ -207,12 +210,12 @@ export default class FibbonaciMap
             `;
             
             // Set the resolution
-            this.geometry_texture_resolution = new THREE.Vector3(100,100);
+            this.geometry_texture_resolution = new THREE.Vector3(600,600);
 
             // Generate the map
             this.generate_sequences();
 
-            this.secondaryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.ShaderMaterial({
+            this.texture_generator = new THREE.ShaderMaterial({
                 vertexShader: vertexShader, fragmentShader: fragmentShader,
                 uniforms:{
                     resolution: {value: this.geometry_texture_resolution },
@@ -225,7 +228,9 @@ export default class FibbonaciMap
                       
                 }
                 
-                }) ))
+            });
+
+            this.secondaryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator))
 
 
             // Create a render target
@@ -280,15 +285,12 @@ export default class FibbonaciMap
                 fib_0 = fib_1;
                 fib_1 = temp;
 
-                if ( j == 0)
-                {
-                    continue;
-                }
+
                 // Build a transform for the different fibbonaccis.
                 let v0 = new THREE.Vector3(1,0,0);
                 let v1 = new THREE.Vector3(0,1,0);
                 let v2 = new THREE.Vector3(0,0,1);
-                let o = new THREE.Vector3(0,0,0);
+                let o = new THREE.Vector3(0,4,0);
 
                 transforms[ (sequence_index*16) ] = v0.x;
                 transforms[ (sequence_index*16) +1  ] = v0.y;
@@ -311,18 +313,18 @@ export default class FibbonaciMap
                 transforms[ (sequence_index*16) +15 ] = 1;
 
                 // Set the array to include information about how many primitives there are in this sequence.
-                resolutions[ sequence_index ] = 20*temp;
+                resolutions[ sequence_index ] = 10*temp;
 
                 // Set the primitive id map to include 20*temp ontop of the curent counter.
-                primitive_id_map[sequence_index] = 20*temp + primitive_id;
-                primitive_id += 20*temp;
+                primitive_id_map[sequence_index] = 10*temp + primitive_id;
+                primitive_id += 10*temp;
                 
                 // Let arc length
                 let arc_length = 0.2;
 
                 if ( i != 0 )
                 {
-                    arc_length = j/(2*i);
+                    arc_length = j/(i);
                 }
 
                 // Then push the 
@@ -338,14 +340,81 @@ export default class FibbonaciMap
             
               
         }
+        
+        for( let i = 1; i < fibbonacci_cap; i ++ )
+        {
+            let fib_0 = 0;
+            let fib_1 = 1;
 
+            for ( let j = 0; j < i ; j++)
+            {
+                
+                let temp = fib_0 + fib_1;
+                fib_0 = fib_1;
+                fib_1 = temp;
+
+
+                // Build a transform for the different fibbonaccis.
+                let v0 = new THREE.Vector3(1,0,0);
+                let v1 = new THREE.Vector3(0,1,0);
+                let v2 = new THREE.Vector3(0,0,-1);
+                let o = new THREE.Vector3(0,4,0);
+
+                transforms[ (sequence_index*16) ] = v0.x;
+                transforms[ (sequence_index*16) +1  ] = v0.y;
+                transforms[ (sequence_index*16) +2 ] = v0.z;
+                transforms[ (sequence_index*16) +3 ] = 1;
+
+                transforms[ (sequence_index*16) +4 ] = v1.x;
+                transforms[ (sequence_index*16) +5 ] = v1.y;
+                transforms[ (sequence_index*16) +6 ] = v1.z;
+                transforms[ (sequence_index*16) +7 ] = 1;
+
+                transforms[ (sequence_index*16) +8 ] = v2.x;
+                transforms[ (sequence_index*16) +9 ] = v2.y;
+                transforms[ (sequence_index*16) +10 ] = v2.z;
+                transforms[ (sequence_index*16) +11 ] = 1;
+
+                transforms[ (sequence_index*16) +12 ] = o.x;
+                transforms[ (sequence_index*16) +13 ] = o.y;
+                transforms[ (sequence_index*16) +14 ] = o.z;
+                transforms[ (sequence_index*16) +15 ] = 1;
+
+                // Set the array to include information about how many primitives there are in this sequence.
+                resolutions[ sequence_index ] = 10*temp;
+
+                // Set the primitive id map to include 20*temp ontop of the curent counter.
+                primitive_id_map[sequence_index] = 10*temp + primitive_id;
+                primitive_id += 10*temp;
+                
+                // Let arc length
+                let arc_length = 0.2;
+
+                if ( i != 0 )
+                {
+                    arc_length = j/(i);
+                }
+
+                // Then push the 
+                arc_lengths[ sequence_index ] = arc_length;
+
+                //console.log(arc_length);
+
+                // Then push the fibbonaci numbers
+                sequences[sequence_index++] = temp*0.5;
+
+            }
+
+            
+              
+        }
         //console.log(primitive_id_map);
-        console.log(sequences);
+        //console.log(sequences);
 
         // Number of sequences.
         this.number_of_sequences = sequence_index;
 
-        //console.log(this.number_of_sequences);
+        console.log(this.number_of_sequences);
 
         // Fill the transform map
         this.sequence_transforms = new THREE.DataTexture(transforms, sequence_index*4, 1, THREE.RGBAFormat, THREE.FloatType)
@@ -424,7 +493,7 @@ export default class FibbonaciMap
             void main() {
                 // Simple color
 
-                gl_FragColor = vec4(1,0,0,1);
+                gl_FragColor = vec4(1.0,0,0,1);
             }
         `;
 
@@ -441,7 +510,7 @@ export default class FibbonaciMap
         });
 
         // Create an instanced mesh with 100 instances
-        const planeMesh = new THREE.InstancedMesh(plane_geometry, this.geometry_material, 700);
+        const planeMesh = new THREE.InstancedMesh(plane_geometry, this.geometry_material, (this.geometry_texture_resolution.x*this.geometry_texture_resolution.y)/4.0);
         planeMesh.frustumCulled = false;
 
         // Add the instanced mesh to the scene
@@ -455,7 +524,7 @@ export default class FibbonaciMap
     render(renderer)
     {
 
-
+        //this.texture_generator.uniforms.max_primitives.value -= 0.1;
         renderer.setRenderTarget(this.renderTarget);
         renderer.render(this.secondaryScene, this.secondaryCamera);
         renderer.setRenderTarget(null);
