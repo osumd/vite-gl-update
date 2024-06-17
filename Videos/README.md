@@ -20,6 +20,8 @@ Scene (Scene Name):
                 Fibbonaci surfaces arrise from each fibonnaci sequence, where the sequence identity is describe on scene, as well as current fibbonaci 
                 number [uses memoization], the surfaces are lighting defined by fibbonaci numbers, and is kind of like a fractal. :- s0
 
+                
+
 
 Notes - Descriptions
     s0 :- 
@@ -41,3 +43,7 @@ Notes - Descriptions
     
     lets try option 2
         
+        convert the triangles to planes.
+        connect the planes along the curve.
+        use spheres instead of circles
+        add lighting, then expand to higher resolutions.

@@ -2,8 +2,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
-const canvas = document.createElement('canvas');
-const context = canvas.getContext('webgl2');
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import InstanceMachine from '../../Primitives/InstanceMachine';
@@ -16,10 +14,11 @@ import ReusableText from '../../Primitives/ReuseableText.jsx';
 
 // Import my first video into the original three
 import RecurrenceRelationVideo from '../../Videos/ReccurenceRelations.jsx';"../../Videos/ReccurenceRelations.jsx";
-
 import FibbonaciMap from '../../Videos/Scenes/FibbonaciMap.jsx';
 
+
 import './HubbleRedshift.css'
+import { render } from 'react-dom';
 
 function create_scene_context()
 {
@@ -51,6 +50,10 @@ function OriginalThree ()
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.z = 5;
 
+            camera.near = 0.1;
+            camera.far = 1000;
+            camera.updateProjectionMatrix();
+
             const canvas = document.getElementById("myThreeJsCanvas");
 
             // Create renderer
@@ -60,7 +63,7 @@ function OriginalThree ()
             });
 
             renderer.setSize(window.innerWidth*0.5, window.innerHeight*0.5);
-
+            
             document.body.appendChild(renderer.domElement);
 
             const controls = new OrbitControls(camera, renderer.domElement);
@@ -69,30 +72,41 @@ function OriginalThree ()
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
             const cube = new THREE.Mesh(geometry, material);
-            cube.position.set(0,4,0);
-            scene.add(cube);
+            cube.position.set(0,1,0);
 
+            const cube2 = new THREE.Mesh(geometry, material);
+            cube2.position.set(20,0,0);
+
+            
+            scene.add(cube);
+            scene.add(cube2);
+
+            let fib_map = new FibbonaciMap(scene, renderer);
+            fib_map.texture_to_instance(scene);
+            
             //scene context
             let scene_context = create_scene_context();
             // Set up ref to the camera
             scene_context.camera = camera;
             
-            new FibbonaciMap().test_writing_to_texture(scene);
-
-            //scene.add(new CylinderGrid(scene).GenerateGrid())
-            // Play a video.
-            //let recurrence_relation_video = new RecurrenceRelationVideo(scene_context);
+            
 
             handle_scene_context(scene, scene_context);
             
-            // Animation loop
+
+            
+            // Animation loop   
             const animate = () => {
-                  
+
+
+                fib_map.render(renderer);
+
                 renderer.render(scene, camera);
+                
+                renderer.setClearColor(new THREE.Color(0x202020));
                 //controls.update();
                 scene_context.eventSystem.update(clock.getDelta());
                 //Fire animation subroutines
-
 
                 window.requestAnimationFrame(animate);
             };
