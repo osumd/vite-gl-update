@@ -44,8 +44,6 @@ class ReusableText extends React.Component {
         this.text_objects[text_id].text = text;
         this.text_objects[text_id].fontSize = size;
 
-        
-
         this.text_objects[text_id].anchorX = "center";
         this.text_objects[text_id].anchorY = "middle";
         this.text_objects[text_id].position.x = position.x;

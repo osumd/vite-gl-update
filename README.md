@@ -20,9 +20,32 @@ Then also denote the adjacency of the sections, so that edges in their respectiv
   easy to see the different measurement markers.
   Next is labels
 
-## Features: View frustrum relative placement.
-   Need to get/place items relative to view frustrum, for a makeshift ui/ explainer / fitting.
+## Features: Math Parser Utility
+  uses case:
+    as a user I want to use a math parser tool to generate and add text to the animation group that listens to latex symbols
+    as a user I want the math parser tool to add the text to the scene, but also have an option in the event system
+    to talk to the math parser, and also the math parser needs to talk to the reusable text engine to dispose of the text.
+    as a user blocks of text will be given ids and operators and their parts will also be given ids for animation.
+    
+    add space count adjustment from text level operations in the parsing effect
 
+    check for a cooresponding dual
+
+    usage (later): 
+      let text_id = math_parser.parse( (-1.0, -1.0) "|frac{a}{b}{c}" );
+      eventSystem.position_to(text_id.frac0, duration: 1, (1.0, -1.0));
+
+## Features: Frustrum UI
+  TO-DO:
+    pull in frustrum details to build the original bounding container, and axis system.
+    math parser should return length details for the total expression as well as the micro expressions.
+    
+    
+
+  
+
+  
+   
 ## Features: Creation and deletion system.
 an event must also consititute creation events rather than manipulations.
 and if no inital state or to state is given, then it is spawned where ever the cursor is in this case its 0,0,0

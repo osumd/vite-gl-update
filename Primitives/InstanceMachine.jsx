@@ -114,11 +114,16 @@ class InstanceMachine extends React.Component {
         m.setPosition(location);
         m.scale(new THREE.Vector3(radius,radius,radius));
 
-//        console.log(this.instances_xy_spheres_size);
 
         this.instancedXYSphere.setMatrixAt(this.instances_xy_spheres_size, m);
         this.instancedXYSphere.instanceMatrix.needsUpdate= true;
+        
+        // Store the instance index
+        let instance_index = this.instances_xy_spheres_size;
+
         this.instances_xy_spheres_size++;
+
+        return instance_index;
 
 
 

@@ -16,54 +16,40 @@ class Dequeue extends React.Component
         this.elements = 0;
 
 
-        this.events = [];
 
     }
 
-    push_front(value)
+    push_back(value)
     {
-        if((this.tail + 1) % this.data.length === this.head)
+        if( (this.tail + 1) % this.data.length === this.head)
         {
             this.resize();
         }
-
-        this.events.push("push_front before " + " data: " + this.data + " head: " + this.head + " tail: " + this.tail);
 
 
         this.data[this.tail] = value;
         this.data_length++;
         this.tail = (this.tail + 1) % this.data_length;
         
-        this.events.push("push_front after " + "data: " + this.data + " head: " + this.head + " tail: " + this.tail);
-        this.events.push(" ");
-
         this.elements++;
     }
+
+
 
     pop_front()
     {
 
         if(this.head === this.tail)
         {
-            this.events.push("null pop_front ");
+            
             return null;
         }
-
-        this.events.push("pop_front before " + "data:\\br" + this.data + "head: " + this.head + "tail: " + this.tail);
 
         let value = this.data[this.head];
         this.head = (this.head + 1) % this.data.length;
 
-        this.events.push("pop_front after " + "data:\\br" + this.data + "head: " + this.head + "tail: " + this.tail);
-
-        this.events.push(" ");
         this.elements--;
         return value;
-
-        
-
-        
-        
 
     }
 
@@ -90,28 +76,35 @@ class Dequeue extends React.Component
 
         for(let i = 0; i < this.data.length; i++)
         {
-            new_data[i] = this.data[(this.head + i) % this.data.length];
+            new_data[i] = this.data[ (this.head + i) % this.data.length ];
         }
 
         this.head = 0;
-        this.tail = this.data.length;
+        this.tail = this.data.length-1;
         this.data_length = this.data.length * 2;
         this.data = new_data;
     
 
     }
 
-    render()
-    {
-        return <div>
-            {this.events.map((event, index) => (
-                        <li key={index}>{event}</li>
-            ))}
 
-        </div>
-    }
 
 
 };
+
+// let Q = new Dequeue();
+
+// let n = 200;
+
+// for( let i = 0; i < n; i ++)
+// {
+//     Q.push_back(i);
+
+// }
+// for( let i = 0; i < n; i ++)
+// {
+//     console.log(Q.pop_front())
+// }
+
 
 export {Dequeue};

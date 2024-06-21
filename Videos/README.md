@@ -11,6 +11,10 @@ Scene (Scene Name):
 
                 the Euclidean algorithm uses recursion with a base case being that the remainder from the current iteration is zero, and that subsequently 
                 remainders are computed until this base case is reached. :- s2
+
+                The steps of the euclidean algorithm are linked to fibbonacci numbers by equality relations for example, then explain lames theroem
+
+                Solving for a simple recurrence relation like the fibbonaci sequence involves solving a 2-degree polynomial or a quadratic polynomial. 
         Display:
             Gloal Effect:
                 "Introduce the feeling/essence of recursion using the fibbonaci sequence." :- s0
@@ -18,7 +22,14 @@ Scene (Scene Name):
                 "Lays out the notation of a recurrence relation" :- s2
             Body:
                 Fibbonaci surfaces arrise from each fibonnaci sequence, where the sequence identity is describe on scene, as well as current fibbonaci 
-                number [uses memoization], the surfaces are lighting defined by fibbonaci numbers, and is kind of like a fractal. :- s0
+                number [ uses memoization ], the surfaces are lighting defined by fibbonaci numbers, and is kind of like a fractal. :- s0
+
+                A few steps of euclidean algorithm are displayed in a column on the left side of the screen, then the recurrence relation for the euclidean algorithm shows up centered in the right side column of the screen.
+
+    Subscene 2.
+        Script:
+            Goal Effect:
+                
 
                 
 
@@ -41,5 +52,8 @@ Notes - Descriptions
             Then the buffer is rendered and slowly allowed more draw calls on the geometry to simulate the animation.
             problem: the results are written directly to textures on the gpu which is costly for the cpu to read in order to for example sync up a camera for the journey!
     
-    lets try option 2
-        add lighting, then expand to higher resolutions.
+    animation.
+        be able to create more fibbonaci surfaces
+        edit the variables
+
+    

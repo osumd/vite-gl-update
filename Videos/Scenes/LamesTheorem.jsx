@@ -12,7 +12,6 @@ export default class LamesTheorem
         this.last_camera = [0,0,0];
     }
 
-
     get_camera_far_plane()
     {
         // Get the forward vector

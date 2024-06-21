@@ -1,254 +1,267 @@
 import * as THREE from 'three';
 
 
-class GeneralGeometry
-{
-    
 
-    constructor()
-    {
-
-        // Generate
-
-    }
-}
 
 export default class FibbonaciMap
 {
 
-    constructor(scene, renderer)
+    constructor(scene_context)
     {
+            console.log(scene_context);
+            // Store the scene context
+            this.scene_context = scene_context;
 
-            // Create secondary camera
-
-            this.secondaryCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-            this.secondaryCamera.position.z = 1;
-
-            // Create secondary scene
-            this.secondaryScene = new THREE.Scene();
-            //this.secondaryScene.background = new THREE.Color(0xFF0000);
-
-            // Create the shader
-            const vertexShader = `
-                varying vec2 vUv;
-
-                // Layout of the buffer, 
-
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `;
-
-            const fragmentShader = `
-
-                // Store the resolution of the texture being drawn into.
-                uniform vec2 resolution;
-
-                // Information regarding number of sequences
-                uniform int number_of_sequences;
-
-                // Information about which primitive id is associated with which sequence.
-                // Stores the end limit for each range including the previous range for primitive counts.
-                uniform sampler2D primitive_id_map;
-
-                uniform float max_primitives;
-
-                // Sequence map texture.
-                uniform sampler2D sequence_map;
-
-                // Sequence the arc length and resolution textures
-                uniform sampler2D sequence_resolutions;
-                uniform sampler2D sequence_arc_lengths;
-
-                // Sequence tranforms
-                uniform sampler2D sequence_transforms;
+            // Generate the uniform map for the geometry texture.
+            // The camera zooms into a platform, a couple of fibbonaci sequences are calculated and shown, in the way they are visualized, accompanied by the ugly spheres.
+            // The camera then shows the plane drift into reality, then the planes insides are animated with time.
             
-                // UV
-                varying vec2 vUv;
-                
-                // Inefficently find sequence range
-                int get_sequence_id( int primitive_id )
-                {
-                    // Define a base index
-                    int id = 0;
-                    
-                    // Fetch the inital range
-                    int id_range = int(texelFetch(primitive_id_map, ivec2(id,0), 0).x);
 
-                    while ( primitive_id > id_range && id < number_of_sequences )
-                    {
-                        id = id + 1;
-                        id_range = int(texelFetch(primitive_id_map, ivec2(id,0), 0).x);
-                    }
-                    
-                    if ( id == number_of_sequences  )
-                    {
-                        return 0;
-                    }
-
-                    return id;
-                }
-
-                
-                float get_sequence_t( int sequence_id, int primitive_id )
-                {
-
-                    int current_end_range  = int(texelFetch(sequence_map, ivec2(sequence_id,0), 0).x);
-                    int current_resolution = int(texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x);
-                    
-                    return float(primitive_id - current_end_range)/float(current_resolution);
-
-                }
-
-                void main() {
-
-                    // Primitive type.
-                    int primitive_type = 4;
-                
-                    // Get the pixel ID or pixel number.
-                    int pixel_id = ( int(gl_FragCoord.y)*int(resolution.x) ) + int(gl_FragCoord.x);
-
-                    // The group id is current group number per primitive.
-                    int primitive_id = ((pixel_id)/primitive_type);
-
-                    // The vertex is the current vertex of the group id primitive; 
-                    int vertex_id = (pixel_id%primitive_type);
-
-                    // The sequence index
-                    int sequence_id = get_sequence_id(primitive_id);
-
-                    // Resolutions of the current curve
-                    float resolution = texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x;
-
-                    // Getting t information
-                    int current_end_range = int(texelFetch(primitive_id_map, ivec2(sequence_id, 0), 0).x);
-                    int current_resolution = int(texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x);
-
-                    float t = 1.0-(float(current_end_range - primitive_id)/float(current_resolution));
-                    float t1 = 1.0-(float(current_end_range - (primitive_id+1))/float(current_resolution));
-
-                    // Sphere radius
-                    float current_sphere_radius = texelFetch(sequence_map, ivec2(sequence_id, 0), 0).x;
-
-                    float next_radius = current_sphere_radius*t1;
-                    float sphere_radius = current_sphere_radius*t;
-                    
-                    // Getting current transform
-                    vec3 v0 = texelFetch(sequence_transforms, ivec2( (sequence_id*4), 0), 0).xyz;
-                    vec3 v1 = texelFetch(sequence_transforms, ivec2( (sequence_id*4)+1, 0), 0).xyz;
-                    vec3 v2 = texelFetch(sequence_transforms, ivec2( (sequence_id*4)+2, 0), 0).xyz;
-                    vec3 o  = texelFetch(sequence_transforms, ivec2( (sequence_id*4)+3,0), 0).xyz;
-                    
-                    // Sphere arc length
-                    float sphere_arc_length = texelFetch(sequence_arc_lengths, ivec2(sequence_id, 0), 0).x;
-
-                    // Current theta
-                    float current_theta = t*(sphere_arc_length*6.28318530718);
-                    float next_theta =  t1*(sphere_arc_length*6.28318530718);
-
-                    // Current Phi
-                    float current_phi = 1.0;
-                    
-                    vec4 color = vec4(0, 0, 0, 1);
-
-                    if ( vertex_id == 0 )
-                    {
-                        
-                        vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta) + v2;
-                        position = o +  v0*sphere_radius*cos(current_theta)*sin(current_phi) + v1*sphere_radius*sin(current_theta)*sin(current_phi) + v2*sphere_radius*cos(current_phi);
-                        color = vec4(position, 1);
-
-                    }
-                    if ( vertex_id == 1 )
-                    {
-                        vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta)  + vec3(0.1,0,0) + v2;
-                        position = o + v0*sphere_radius*cos(current_theta)*sin(current_phi) + v1*sphere_radius*sin(current_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*sphere_radius*cos(current_phi);
-                        color = vec4(position, 1);
-                        
-                    }
-                    if ( vertex_id == 2 )
-                    {
-                        vec3 position = v0*next_radius*cos(next_theta) + v1*next_radius*sin(next_theta) + v2 ;
-                        position = o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi) + v2*next_radius*cos(current_phi) ;
-                        color = vec4(position, 1);
-                        
-                    }
-                    if ( vertex_id == 3 )
-                    {
-                        vec3 position = o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*next_radius*cos(current_phi);
-                        color = vec4(position, 1);
-                    }
-
-
-                    // Getting primitive limits
-                    if ( primitive_id+2 >= current_end_range-1 )
-                    {
-                        color = vec4( o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*next_radius*cos(current_phi), 0);
-                    }
-                    
-                    
-
-                    //color = vec4(float(sphere_arc_length),0,0,1);
-                    //color = texelFetch(sequence_arc_lengths, ivec2(gl_FragCoord.x, 0), 0);
-                    //color = vec4( 0,0,0,1 );
-                    
-                    //vec4 p = texture(primitive_id_map, vec2(vUv.x, 0));
-                    //vec4 p = texelFetch(primitive_id_map, ivec2(vUv.x, 0),  0);
-                    
-                    //color = vec4(float(primitive_id)/3333.0, 0, 0, 1);
-                    //color = vec4(float(sequence_id)/22.0, 0, 0, 1);
-                    //color = vec4(float(current_end_range)/10000.0, 0,0,1);
-                    //color = vec4(float(current_end_range)/1000.0, 0,0,1);
-                    //color = vec4(float(p.x)/10000.0, 0,0,0);
-       
-                    //color = vec4( float(t),0,0, 1 );
-                    //color = texture(sequence_transforms, vUv);
-   
-                    gl_FragColor = color;
-                }
-            `;
-            
-            // Set the resolution
-            this.geometry_texture_resolution = new THREE.Vector3(600,600);
-
-            // Generate the map
             this.generate_sequences();
+            //this.generate_geometry_texture();
+            //this.texture_to_instance();
+    }
 
-            this.texture_generator = new THREE.ShaderMaterial({
-                vertexShader: vertexShader, fragmentShader: fragmentShader,
-                uniforms:{
-                    resolution: {value: this.geometry_texture_resolution },
-                    sequence_map: {value: this.sequence_texture },
-                    sequence_resolutions: {value: this.sequence_resolutions },
-                    sequence_arc_lengths: { value: this.sequence_arc_lengths },
-                    number_of_sequences: {value: this.number_of_sequences },
-                    primitive_id_map :  {value: this.primitive_id_map },
-                    sequence_transforms: {value: this.sequence_transforms},
-                      
+    generate_geometry_texture()
+    {
+        // Create secondary camera
+        this.secondaryCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+        this.secondaryCamera.position.z = 1;
+
+        // Create secondary scene
+        this.secondaryScene = new THREE.Scene();
+        //this.secondaryScene.background = new THREE.Color(0xFF0000);
+
+        // Create the shader
+        const vertexShader = `
+            varying vec2 vUv;
+
+            // Layout of the buffer, 
+
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+
+            // Store the resolution of the texture being drawn into.
+            uniform vec2 resolution;
+
+            // Information regarding number of sequences
+            uniform int number_of_sequences;
+
+            // Information about which primitive id is associated with which sequence.
+            // Stores the end limit for each range including the previous range for primitive counts.
+            uniform sampler2D primitive_id_map;
+
+            uniform float max_primitives;
+
+            // Sequence map texture.
+            uniform sampler2D sequence_map;
+
+            // Sequence the arc length and resolution textures
+            uniform sampler2D sequence_resolutions;
+            uniform sampler2D sequence_arc_lengths;
+
+            // Sequence tranforms
+            uniform sampler2D sequence_transforms;
+        
+            // UV
+            varying vec2 vUv;
+            
+            // Inefficently find sequence range
+            int get_sequence_id( int primitive_id )
+            {
+                // Define a base index
+                int id = 0;
+                
+                // Fetch the inital range
+                int id_range = int(texelFetch(primitive_id_map, ivec2(id,0), 0).x);
+
+                while ( primitive_id > id_range && id < number_of_sequences )
+                {
+                    id = id + 1;
+                    id_range = int(texelFetch(primitive_id_map, ivec2(id,0), 0).x);
                 }
                 
-            });
+                if ( id == number_of_sequences  )
+                {
+                    return 0;
+                }
 
-            this.secondaryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator))
+                return id;
+            }
+
+            
+            float get_sequence_t( int sequence_id, int primitive_id )
+            {
+
+                int current_end_range  = int(texelFetch(sequence_map, ivec2(sequence_id,0), 0).x);
+                int current_resolution = int(texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x);
+                
+                return float(primitive_id - current_end_range)/float(current_resolution);
+
+            }
+
+            void main() {
+
+                // Primitive type.
+                int primitive_type = 4;
+            
+                // Get the pixel ID or pixel number.
+                int pixel_id = ( int(gl_FragCoord.y)*int(resolution.x) ) + int(gl_FragCoord.x);
+
+                // The group id is current group number per primitive.
+                int primitive_id = ((pixel_id)/primitive_type);
+
+                // The vertex is the current vertex of the group id primitive; 
+                int vertex_id = (pixel_id%primitive_type);
+
+                // The sequence index
+                int sequence_id = get_sequence_id(primitive_id);
+
+                // Resolutions of the current curve
+                float resolution = texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x;
+
+                // Getting t information
+                int current_end_range = int(texelFetch(primitive_id_map, ivec2(sequence_id, 0), 0).x);
+                int current_resolution = int(texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x);
+
+                float t = 1.0-(float(current_end_range - primitive_id)/float(current_resolution));
+                float t1 = 1.0-(float(current_end_range - (primitive_id+1))/float(current_resolution));
+
+                // Sphere radius
+                float current_sphere_radius = texelFetch(sequence_map, ivec2(sequence_id, 0), 0).x;
+
+                float next_radius = current_sphere_radius*t1;
+                float sphere_radius = current_sphere_radius*t;
+                
+                // Getting current transform
+                vec3 v0 = texelFetch(sequence_transforms, ivec2( (sequence_id*4), 0), 0).xyz;
+
+                vec3 v1 = texelFetch(sequence_transforms, ivec2( (sequence_id*4)+1, 0), 0).xyz;
+                vec3 v2 = texelFetch(sequence_transforms, ivec2( (sequence_id*4)+2, 0), 0).xyz;
+                vec3 o  = texelFetch(sequence_transforms, ivec2( (sequence_id*4)+3,0), 0).xyz;
+                
+                // Sphere arc length
+                float sphere_arc_length = texelFetch(sequence_arc_lengths, ivec2(sequence_id, 0), 0).x;
+
+                // Current theta
+                float current_theta = t*(sphere_arc_length*6.28318530718);
+                float next_theta =  t1*(sphere_arc_length*6.28318530718);
+
+                // Current Phi
+                float current_phi = 1.0;
+                
+                vec4 color = vec4(0, 0, 0, 1);
+
+                if ( vertex_id == 0 )
+                {
+                    
+                    vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta) + v2;
+                    position = o +  v0*sphere_radius*cos(current_theta)*sin(current_phi) + v1*sphere_radius*sin(current_theta)*sin(current_phi) + v2*sphere_radius*cos(current_phi);
+                    color = vec4(position, 1);
+
+                }
+                if ( vertex_id == 1 )
+                {
+                    vec3 position = v0*sphere_radius*cos(current_theta) + v1*sphere_radius*sin(current_theta)  + vec3(0.1,0,0) + v2;
+                    position = o + v0*sphere_radius*cos(current_theta)*sin(current_phi) + v1*sphere_radius*sin(current_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*sphere_radius*cos(current_phi);
+                    color = vec4(position, 1);
+                    
+                }
+                if ( vertex_id == 2 )
+                {
+                    vec3 position = v0*next_radius*cos(next_theta) + v1*next_radius*sin(next_theta) + v2 ;
+                    position = o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi) + v2*next_radius*cos(current_phi) ;
+                    color = vec4(position, 1);
+                    
+                }
+                if ( vertex_id == 3 )
+                {
+                    vec3 position = o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*next_radius*cos(current_phi);
+                    color = vec4(position, 1);
+                }
 
 
-            // Create a render target
-            this.renderTarget = new THREE.WebGLRenderTarget(this.geometry_texture_resolution.x,this.geometry_texture_resolution.y,{
-                format: THREE.RGBAFormat,
-                type: THREE.FloatType,
-                minFilter: THREE.LinearFilter,
-                magFilter: THREE.LinearFilter,
-            });
+                // Getting primitive limits
+                if ( primitive_id+2 >= current_end_range-1 )
+                {
+                    color = vec4( o + v0*next_radius*cos(next_theta)*sin(current_phi) + v1*next_radius*sin(next_theta)*sin(current_phi)  + vec3(sphere_radius/7.0,0,0) + v2*next_radius*cos(current_phi), 0);
+                }
+                
+                
+
+                //color = vec4(float(sphere_arc_length),0,0,1);
+                //color = texelFetch(sequence_arc_lengths, ivec2(gl_FragCoord.x, 0), 0);
+                //color = vec4( 0,0,0,1 );
+                
+                //vec4 p = texture(primitive_id_map, vec2(vUv.x, 0));
+                //vec4 p = texelFetch(primitive_id_map, ivec2(vUv.x, 0),  0);
+                
+                //color = vec4(float(primitive_id)/3333.0, 0, 0, 1);
+                //color = vec4(float(sequence_id)/22.0, 0, 0, 1);
+                //color = vec4(float(current_end_range)/10000.0, 0,0,1);
+                //color = vec4(float(current_end_range)/1000.0, 0,0,1);
+                //color = vec4(float(p.x)/10000.0, 0,0,0);
+    
+                //color = vec4( float(t),0,0, 1 );
+                //color = texture(sequence_transforms, vUv);
+
+                gl_FragColor = color;
+            }
+        `;
+        
+        // Set the resolution
+        this.geometry_texture_resolution = new THREE.Vector3(600,600);
+
+        this.texture_generator = new THREE.ShaderMaterial({
+            vertexShader: vertexShader, fragmentShader: fragmentShader,
+            uniforms:{
+                resolution: {value: this.geometry_texture_resolution },
+                sequence_map: {value: this.sequence_texture },
+                sequence_resolutions: {value: this.sequence_resolutions },
+                sequence_arc_lengths: { value: this.sequence_arc_lengths },
+                number_of_sequences: {value: this.number_of_sequences },
+                primitive_id_map :  {value: this.primitive_id_map },
+                sequence_transforms: {value: this.sequence_transforms},
+                    
+            }
+            
+        });
+
+        this.secondaryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator))
+
+        // Create a render target
+        this.renderTarget = new THREE.WebGLRenderTarget(this.geometry_texture_resolution.x,this.geometry_texture_resolution.y,{
+            format: THREE.RGBAFormat,
+            type: THREE.FloatType,
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+        });
+
+        // Map a plane to display.
+        const displayPlane = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map: this.renderTarget.texture}));
+            
+        this.scene_context.scene.add(displayPlane);
+
+        // Register on animate to generate the texture
+        this.scene_context.onAnimate.add_event(this.render_geometry_texture.bind(this) );
+    }
 
 
 
-            // Map a plane to display.
-            const displayPlane = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map: this.renderTarget.texture}));
-             
-            scene.add(displayPlane);
+    render_geometry_texture()
+    {
+        this.scene_context.renderer.setRenderTarget( this.renderTarget );
+        this.scene_context.renderer.render( this.secondaryScene, this.secondaryCamera );
+        this.scene_context.renderer.setRenderTarget(null);
+    }
 
-
+    play()
+    {
 
     }
 
@@ -263,7 +276,6 @@ export default class FibbonaciMap
         let resolutions = new Float32Array( fibbonacci_cap*fibbonacci_cap );
         let arc_lengths = new Float32Array( fibbonacci_cap*fibbonacci_cap );
         let transforms = new Float32Array( fibbonacci_cap*fibbonacci_cap*16 );
-
 
         // Generate a proper way of retrieving the sequence id
         let primitive_id_map = new Float32Array(  fibbonacci_cap*fibbonacci_cap );
@@ -292,7 +304,7 @@ export default class FibbonaciMap
                 let v2 = new THREE.Vector3(0,0,1);
                 let o = new THREE.Vector3(0,4,0);
 
-                transforms[ (sequence_index*16) ] = v0.x;
+                transforms[ (sequence_index*16) ] = v0.x ;
                 transforms[ (sequence_index*16) +1  ] = v0.y;
                 transforms[ (sequence_index*16) +2 ] = v0.z;
                 transforms[ (sequence_index*16) +3 ] = 1;
@@ -408,13 +420,9 @@ export default class FibbonaciMap
             
               
         }
-        //console.log(primitive_id_map);
-        //console.log(sequences);
 
         // Number of sequences.
         this.number_of_sequences = sequence_index;
-
-        console.log(this.number_of_sequences);
 
         // Fill the transform map
         this.sequence_transforms = new THREE.DataTexture(transforms, sequence_index*4, 1, THREE.RGBAFormat, THREE.FloatType)
@@ -438,23 +446,32 @@ export default class FibbonaciMap
 
     }
 
-    texture_to_instance(scene)
+    texture_to_instance()
     {
-        // Define the vertices of the triangle
-        const vertices = new Float32Array([
-            -1.0, -1.0, 0.0,  // Vertex 1
-            1.0, -1.0, 0.0,  // Vertex 2
-            0.0,  1.0, 0.0   // Vertex 3
+        let vertices = new Float32Array([
+
+            -1.0, -1.0, 0.0,
+            1.0, -1.0, 0.0,
+            1.0, 1.0, 0.0,
+            -1.0, -1.0, 0.0,
+            1.0, 1.0, 0.0,
+            -1.0, 1.0, 0.0,
         ]);
 
-        const uvs = new Float32Array([
+        let uvs = new Float32Array([
             0.0, 0.0,
             1.0, 0.0,
-            0.5, 1.0  // Adjusted to 0.5 for correct UV mapping
+            1.0, 1.0,
+
+            0.0, 0.0,
+            1.0,1.0,
+            0.0, 1.0
         ]);
 
         // Create a BufferGeometry and set its attributes
-        const plane_geometry = new THREE.PlaneGeometry(2,2);
+        const plane_geometry = new THREE.BufferGeometry();
+        plane_geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        plane_geometry.setAttribute('uv', new THREE.BufferAttribute(vertices, 2));
 
         // Vertex shader
         const vertexShader = `
@@ -463,22 +480,48 @@ export default class FibbonaciMap
             uniform sampler2D geometry_texture;
             uniform vec2 resolution;
 
+            varying vec3 out_position;
+            varying vec3 out_norm;
+            flat varying ivec2 pixel_coordinate;
+
             void main() {
 
                 // Grab the UV
                 vUv = uv;
 
                 // Calculate the pixel coordinate from instance variable
-                ivec2 pixel_coordinate = ivec2 ( (gl_InstanceID + gl_VertexID) % int(resolution.x), (gl_InstanceID + gl_VertexID) / int(resolution.x) );
+                pixel_coordinate = ivec2 ( (gl_InstanceID + gl_VertexID) % int(resolution.x), (gl_InstanceID + gl_VertexID) / int(resolution.x) );
 
+            
                 // Texel snatch the according vertex.
                 vec4 geom = texelFetch(geometry_texture, pixel_coordinate, 0);
 
-                
+                // Calculate adjacent pixels' coordinates
+                ivec2 right_pixel = pixel_coordinate + ivec2(1, 0);
+                ivec2 up_pixel = pixel_coordinate + ivec2(0, 1);
+
+                // Ensure coordinates are within texture bounds
+                right_pixel = ivec2(mod( float(right_pixel.x), resolution.x), right_pixel.y);
+                up_pixel = ivec2(up_pixel.x, mod( float(up_pixel.y), resolution.y));
+
+                // Fetch adjacent vertex positions
+                vec3 right_pos = texelFetch(geometry_texture, right_pixel, 0).xyz;
+                vec3 up_pos = texelFetch(geometry_texture, up_pixel, 0).xyz;
+
+                // Compute edges
+                vec3 edge1 = right_pos - geom.xyz;
+                vec3 edge2 = up_pos - geom.xyz;
+
+                // Compute normal using cross product
+                vec3 normal = normalize(cross(edge1, edge2));
+
+                out_norm = normal;
 
                 // Modify position based on instance ID
                 vec3 pos = geom.xyz;
                 
+                out_position = pos;
+      
                 // Apply standard transformations
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 
@@ -490,10 +533,44 @@ export default class FibbonaciMap
             // Add supports for lights
             varying vec2 vUv;
 
-            void main() {
-                // Simple color
+            varying vec3 out_norm;
 
-                gl_FragColor = vec4(1.0,0,0,1);
+            flat varying ivec2 pixel_coordinate;
+            
+            vec3 light1 = vec3(-1,0,0);
+            vec3 light2 = vec3(0,0,20);
+            vec3 light3 = vec3(-1,0,0);
+            vec3 light4 = vec3(-1,0,0);
+
+            varying vec3 out_position;
+
+            uniform sampler2D sequence_map;
+
+            void main() {
+                
+
+                vec3 dir1 = normalize(light1 - out_position);
+                vec3 dir2 = normalize(light2 - out_position);
+                vec3 dir3 = normalize(light3 - out_position);
+                vec3 dir4 = normalize(light4 - out_position);
+
+                // Simple color
+                float d1 = dot( dir1, out_norm);
+                float d2 = dot( out_norm, dir2);
+                float d3 = dot( out_norm, dir3);
+                float d4 = dot( out_norm, dir4);
+
+                float total_d = (d1+d2+d3+d4)/4.0;
+
+                vec3 color = vec3(0.5,0.0 , 0.4);
+
+                vec3 ambient = vec3(0.7,0.3,0.3);
+                
+                vec4 sequence = texture(sequence_map, 0.5*fract( vec2(d4,d2) ) );
+
+                gl_FragColor = vec4( color*total_d + ambient, 1);
+                //gl_FragColor = vec4( out_norm, 1);
+                
             }
         `;
 
@@ -506,6 +583,7 @@ export default class FibbonaciMap
             {
                 geometry_texture: {value: this.renderTarget.texture },
                 resolution: {value: this.geometry_texture_resolution},
+                sequence_map: {value: this.sequence_texture },
             }
         });
 
@@ -514,7 +592,7 @@ export default class FibbonaciMap
         planeMesh.frustumCulled = false;
 
         // Add the instanced mesh to the scene
-        scene.add(planeMesh);
+        this.scene_context.scene.add(planeMesh);
 
 
 

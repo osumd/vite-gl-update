@@ -2,33 +2,45 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
-
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import InstanceMachine from '../../Primitives/InstanceMachine';
 
 //Animation system
 import {EventAnimation, EventSystem} from '../EventAnimation/EventAnimation.jsx';
 
+// Import OnAnimate to jack into the main animation loop.
+import OnAnimate from '../EventAnimation/OnAnimate.jsx';
+
 //Importing reuseable text to test its functionality.
 import ReusableText from '../../Primitives/ReuseableText.jsx';
 
-// Import my first video into the original three
-import RecurrenceRelationVideo from '../../Videos/ReccurenceRelations.jsx';"../../Videos/ReccurenceRelations.jsx";
-import FibbonaciMap from '../../Videos/Scenes/FibbonaciMap.jsx';
+import { Text } from 'troika-three-text';
 
+// Import math parser and creator.
+import MathParser from '../MathParser/MathParser.js';
+
+// Import frustrum UI
+import {FUIDoc, FUIParser} from '../EventAnimation/FrustrumUI.js';
 
 import './HubbleRedshift.css'
-import { render } from 'react-dom';
 
-function create_scene_context()
+function create_scene_context(scene, renderer)
 {
     //may to need to create reference to scene and return it
     let instanceMachine = new InstanceMachine();
     // set up reusable text object
     let reusable_text = new ReusableText();
+    // Set up the event animation system
     let eventSystem = new EventSystem({instanceMachine, reusable_text});
+    // Set up the OnAnimate system
+    let onAnimate = new OnAnimate();
+
+    // Set up math parser
+    let math_parser = new MathParser({reusable_text, scene, renderer});
+    // Setup the FUI Parser
+    let fui_parser = new FUIParser();
     
-    return {instanceMachine, eventSystem, reusable_text};
+    return {instanceMachine, eventSystem, reusable_text, onAnimate, math_parser, fui_parser, scene, renderer};
 }
 
 function handle_scene_context( scene, scene_context )
@@ -40,7 +52,6 @@ function handle_scene_context( scene, scene_context )
 
 function OriginalThree ()
 {
-        
         useEffect(() => {
 
             const scene = new THREE.Scene();
@@ -49,10 +60,6 @@ function OriginalThree ()
             
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.z = 5;
-
-            camera.near = 0.1;
-            camera.far = 1000;
-            camera.updateProjectionMatrix();
 
             const canvas = document.getElementById("myThreeJsCanvas");
 
@@ -72,41 +79,45 @@ function OriginalThree ()
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
             const cube = new THREE.Mesh(geometry, material);
-            cube.position.set(0,1,0);
+            cube.position.set(0,0,1);
 
             const cube2 = new THREE.Mesh(geometry, material);
             cube2.position.set(20,0,0);
 
-            
             scene.add(cube);
             scene.add(cube2);
 
-            let fib_map = new FibbonaciMap(scene, renderer);
-            fib_map.texture_to_instance(scene);
-            
             //scene context
-            let scene_context = create_scene_context();
+            let scene_context = create_scene_context(scene, renderer);
             // Set up ref to the camera
             scene_context.camera = camera;
-            
-            
+
+
+
+            //scene_context.math_parser.parse_math("<position=[1,1,-3] id=good>f_b^a</>");
+
+
+            let fui = new FUIDoc(scene_context);
+            fui.parse("<>Hello<>Okay</></>");
 
             handle_scene_context(scene, scene_context);
             
-
             
+
             // Animation loop   
             const animate = () => {
 
-
-                fib_map.render(renderer);
+                
+                // Update the on animate settings
+                scene_context.onAnimate.update();
 
                 renderer.render(scene, camera);
                 
                 renderer.setClearColor(new THREE.Color(0x202020));
-                //controls.update();
-                scene_context.eventSystem.update(clock.getDelta());
+                
                 //Fire animation subroutines
+                scene_context.eventSystem.update(clock.getDelta());
+                
 
                 window.requestAnimationFrame(animate);
             };
