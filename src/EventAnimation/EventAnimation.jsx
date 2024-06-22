@@ -33,6 +33,7 @@ class EventSystem extends React.Component{
         //animateable attributes
         this.animateable_attributes = {
             "position":this.update_object_position.bind(this),
+            "translation":this.update_object_translation.bind(this),
             "scale":this.update_object_scale.bind(this), 
             "lookat":this.update_object_lookat.bind(this),
             "orthoview":this.update_object_orthoview.bind(this),
@@ -46,6 +47,7 @@ class EventSystem extends React.Component{
         //get specific attributes from object
         this.retrievable_attributes = {
             "position": this.get_object_position.bind(this),
+            "translation": this.get_object_translation.bind(this),
             "scale": this.get_object_scale.bind(this), 
             "lookat":this.get_object_lookat.bind(this),
             "orthoview":this.get_object_orthoview.bind(this),
@@ -246,6 +248,21 @@ class EventSystem extends React.Component{
 
     }
 
+    //adds math text and animates
+    add_math( {text="", duration="auto", color=0x9966FF, size=1, position = new THREE.Vector3(0,0,0), rotation= new THREE.Vector3(0,0,0), quaternion = new THREE.Quaternion(0,0,0,0)}, ...args )
+    {
+        let text_group = this.scene_context.math_parser.parse_math(text);
+        
+        
+        //this.add_event({object: text_group.text0, duration: 1, isText: true}, {attribute: "position", to:new THREE.Vector3(1,0,0)});
+        for( let i = 0; i < text_group.all_ids.length; i++)
+        {
+            let eventArgs = Object.assign({}, args[0]);
+            
+            this.add_event({object: text_group.all_ids[i], duration:1, isText: true, start:"last"}, eventArgs);
+        }
+    }
+
     // Add animation group for easy to disposal
     add_animation_group(group_name = "empty")
     {
@@ -381,6 +398,44 @@ class EventSystem extends React.Component{
         }
     }
 
+    get_object_translation({head, attribute})
+    {
+        
+        if(head.isRef == true)
+        {
+            return head.object.current.position.clone();
+        }else if (head.isText == true )
+        {
+            let object = this.scene_context.reusable_text.get_text(head.object);
+            
+            return object.position.clone();
+        }
+        else if ( head.primitive != false )
+        {
+            // Uses the get world functionality by indexing by primitive type.
+            let position = new THREE.Vector3();
+            let quaternion = new THREE.Quaternion();
+            let scale = new THREE.Vector3();
+
+            let primitive_instanced = this.scene_context.instanceMachine.primitive_reference[head.primitive];
+
+            //console.log("EVENT_SYSTEM: primitive instanced : ", primitive_instanced);
+
+            let instanceMatrix = new THREE.Matrix4();
+            primitive_instanced.getMatrixAt(head.object, instanceMatrix);
+            //console.log("EVENT_SYSTEM: primtive matrix", primitive_instanced);
+
+            instanceMatrix.decompose(position, quaternion, scale);
+            //console.log("EVENT_SYSTEM: decomposition: ", position, quaternion, scale);
+
+            return position;
+
+        }else
+        {
+            return head.object.position.clone();
+        }
+    }
+
     update_object_position({head, attribute, t})
     {
             
@@ -449,6 +504,74 @@ class EventSystem extends React.Component{
         }
 
         
+    }
+
+    update_object_translation({head, attribute, t})
+    {
+        if(head.isRef == true)
+        {  
+            //set easing from attribute arg
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.from.x+attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.from.y+attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.from.z+attribute.to.z, t);
+
+
+            head.object.current.position.set(x,y,z);
+
+        }else if ( head.isText == true)
+        {
+            let easing = attribute.easing;
+            console.log()
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.from.x + attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.from.y + attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.from.z + attribute.to.z, t);
+            
+            let object = this.scene_context.reusable_text.get_text(head.object);
+            
+            //console.log(x,y,z);
+
+            object.position.set(x,y,z);
+            
+        }
+        else if ( head.primitive != false )
+        {
+            
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.from.x+attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.from.y+attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.from.z+attribute.to.z, t);
+
+            let instance_matrix = new THREE.Matrix4();
+
+            this.scene_context.instanceMachine.primitive_reference[head.primitive].getMatrixAt(head.object, instance_matrix);
+            
+            let position = new THREE.Vector3();
+            let quaternion = new THREE.Quaternion();
+            let scale = new THREE.Vector3();
+            
+            instance_matrix.decompose(position, quaternion, scale);
+
+            position.set(x,y,z);
+            instance_matrix.compose(position, quaternion, scale);
+
+            this.scene_context.instanceMachine.primitive_reference[head.primitive].setMatrixAt(head.object, instance_matrix);
+
+            this.scene_context.instanceMachine.primitive_reference[head.primitive].instanceMatrix.needsUpdate = true;
+
+        }else
+        {
+            //set easing from attribute arg
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.from.x+attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.from.y+attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.from.z+attribute.to.z, t);
+            
+            head.object.position.set(x,y,z);
+        }
     }
 
     get_object_scale({head, attribute})

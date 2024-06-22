@@ -30,13 +30,14 @@ function create_scene_context(scene, renderer)
     let instanceMachine = new InstanceMachine();
     // set up reusable text object
     let reusable_text = new ReusableText();
+    // Set up math parser
+    let math_parser = new MathParser({reusable_text, scene, renderer});
     // Set up the event animation system
-    let eventSystem = new EventSystem({instanceMachine, reusable_text});
+    let eventSystem = new EventSystem({instanceMachine, reusable_text, math_parser});
     // Set up the OnAnimate system
     let onAnimate = new OnAnimate();
 
-    // Set up math parser
-    let math_parser = new MathParser({reusable_text, scene, renderer});
+    
     // Setup the FUI Parser
     let fui_parser = new FUIParser();
     
@@ -61,6 +62,9 @@ function OriginalThree ()
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.z = 5;
 
+            
+            //camera.quaternion.z = 2;
+
             const canvas = document.getElementById("myThreeJsCanvas");
 
             // Create renderer
@@ -73,7 +77,9 @@ function OriginalThree ()
             
             document.body.appendChild(renderer.domElement);
 
-            const controls = new OrbitControls(camera, renderer.domElement);
+           const controls = new OrbitControls(camera, renderer.domElement);
+
+           
             
             const geometry = new THREE.BoxGeometry();
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -91,22 +97,37 @@ function OriginalThree ()
             let scene_context = create_scene_context(scene, renderer);
             // Set up ref to the camera
             scene_context.camera = camera;
+            //console.log(text_group.text0numerator);
 
+            // let fui = new FUIDoc(scene_context);
+            // let tree = fui.parse(`
+            
+            //     < width='0.5' padding='[0.0, 0.0, 0.0, 0.0]'>
+            //         <fontSize='2.0' display='inline'>block</>
+            //         <fontSize='3.5'>block</>
+            //     </>
+                
+            //     <>Block</>
+                
+                
+            
+            // `);
 
+    
+            // console.log(tree)
+            
+            //scene_context.math_parser.parse_math("<size=3>hello</><size=2>Wow</>")
 
-            //scene_context.math_parser.parse_math("<position=[1,1,-3] id=good>f_b^a</>");
-
-
-            let fui = new FUIDoc(scene_context);
-            fui.parse("<>Hello<>Okay</></>");
 
             handle_scene_context(scene, scene_context);
             
-            
-
             // Animation loop   
             const animate = () => {
 
+                if ( Math.floor(clock.elapsedTime*10) % 10  == 0)
+                {
+                    //fui.parse("Hello");
+                }
                 
                 // Update the on animate settings
                 scene_context.onAnimate.update();
@@ -138,7 +159,7 @@ function OriginalThree ()
             <h1>dfa</h1>
             <h1>dfasdf</h1>
             <div>
-                <canvas id="myThreeJsCanvas"  />
+                <canvas id="myThreeJsCanvas"/>
             </div>
         </div>;
 }

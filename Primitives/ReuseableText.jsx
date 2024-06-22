@@ -69,6 +69,14 @@ class ReusableText extends React.Component {
 
     }
 
+    dispose_ids(ids)
+    {
+        for( let i = 0; i < ids.length; i ++ )
+        {
+            this.dispose_text(ids[i]);
+        }
+    }
+
     // Return text object
     get_text(id)
     {

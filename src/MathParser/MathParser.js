@@ -1,46 +1,50 @@
 
-
+// Import text from troika text.
 import { Text } from "troika-three-text";
+
 
 // Use standard troika text attributes
 class MathParserNode
 {
     constructor()
     {
-        //Alignment options
+        //Alignment options [Default]
         this.alignX = "left";
         this.alignY = "0"
 
+        // Choose attributes availabe to troika text, need to add rotations for if the frustrum is rotated.
         this.color = [1,0,0];
         this.position = [0,0,0];
+        this.quaternion = [0,0,0]; // For quaternion rotation to orient to the plane normal.
         this.size = 1.0;
         this.id = "";
         this.textContent = "";
         
-        // Register length of the total letters
+        // Register length of the total letters [verify]
         // Register length of letter at the end.
         this.totalLength = 0;
         this.lastLetterLength = 0;
 
-        // Operator assignment
+        // Operator assignment [verify]
         this.operator_name = "";
         this.operator_arguments = [];
         this.operator_arguments_length = [];
         this.empty = true;
 
-        // Supports superscript and subscript behavior
+        // Supports superscript and subscript behavior [verify]
         this.superscriptContent = "";
         this.subscriptContent = "";
 
         
     }
 
+    // Copies color,size,id and space
     copy_attributes( other_node )
     {
         this.color = [...other_node.color];
         this.size = other_node.size;
+        this.position = [...other_node.position];
         this.id = other_node.id;
-        this.spaceCount = other_node.spaceCount;
     }
 }
 
@@ -49,21 +53,34 @@ class MathParserNode
 
 class MathDecoder
 {
+    
     constructor(scene_context)
     {
         // Store scene context
         this.scene_context = scene_context;
-        // We need our baseline cursor
+
+        // Cursor which moves according to the  next contexual placement of text objects. 
+        // Not in accordance with any basis vectors, and works on 2x2 identity. [REFACTOR to account for real axes]
         this.baseline_cursor = [0,0];
 
-        // Set by what the position of the current token is.
+        // Define unit vectors in coorespondence with the baseline cursor
+        this.baseline_vectors = [
+            [1,0,0],
+            [0,1,0]
+        ];
+
+        this.orientation = [0,0,0,1]
+
+        //Dedicated as a local translation unit,  [verify]
         this.current_base_position = [0,0,0];
 
+        // Stores operator placement functions [verify]
         this.operator_map = {
             "frac" : this.render_frac.bind(this)
         };
 
         // Associate the ids with indexes into the reusable text, helpful for reference/altering specific portions of a parsed math system.
+        // [furthur verify needed.]
         this.id_map = {
             "" : {
                 text_count: 0,
@@ -71,10 +88,11 @@ class MathDecoder
                 total_length: 0,
             },
         };
-        // Id associated with current export token
+
+        // Id associated with current export token [verify - look up.]
         this.current_group_id = "";
 
-        // List of all text_ids associated with this current decoding cycle
+        // List of all text_ids associated with this current decoding cycle [needed implementation.]
         this.ids_array = [];
         
     }
@@ -98,14 +116,24 @@ class MathDecoder
     // Use subroutines for appending ids into the id table
     add_text_id(id)
     {
-        // Given the id assign it to textx
-        // Get the current text_count
-        let text_count = this.id_map[this.current_group_id].text_count;
-        // Assign the text variation the text id
-        this.id_map[this.current_group_id][`text${text_count}`] = id;
+        let text_count;
+        if ( this.current_group_id != "")
+        {
+             text_count = this.id_map[this.current_group_id].text_count;
+             // Assign the text variation the text id
+            this.id_map[this.current_group_id][`text${text_count}`] = id;
+        }else
+        {
+            text_count = this.id_map.text_count;
+            this.id_map[`text${text_count}`] = id;
+        }
+        
+        
+        
         
     }
 
+    // Could refactor to just count the subscripts/supercripts to make it easier to find but could then not find the sub/super based on text alone. [ preffered ]
     add_superscript_id(id)
     {
         let text_count =this.id_map[this.current_group_id].text_count;
@@ -118,52 +146,90 @@ class MathDecoder
         this.id_map[this.current_group_id][`test${text_count}sub`] = id;
     }
 
+    add_global_id(id)
+    {
+        this.id_map.all_ids.push(id);
+    }
+
     // Increment the text id after subscripts and superscripts
     increment_text_id()
     {
-        this.id_map[this.current_group_id].text_count++;
+        if( this.current_group_id != "")
+        {
+            this.id_map[this.current_group_id].text_count++;
+        }else{
+            this.id_map.text_count++;
+        }
+        
     }
     // Use subroutines for appending ids for the frac operator
     add_frac_id(numerator, denominator)
     {
-        // Given the id assign it to fracx
-        // Get the current text_count
-        let frac_count = this.id_map[this.current_group_id].frac_count;
-        // Assign the text variation the text id
-        this.id_map[this.current_group_id][`frac${frac_count}numerator`] = numerator;
-        this.id_map[this.current_group_id][`frac${frac_count}denominator`] = denominator;
+        
+        if ( this.current_group_id != "")
+        {
+            // Given the id assign it to fracx
+            // Get the current text_count
+            let frac_count = this.id_map[this.current_group_id].frac_count;
+            // Assign the text variation the text id
+            this.id_map[this.current_group_id][`frac${frac_count}numerator`] = numerator;
+            this.id_map[this.current_group_id][`frac${frac_count}denominator`] = denominator;
+        }else
+        {
+            // Given the id assign it to fracx
+            // Get the current text_count
+            let frac_count = this.id_map.frac_count;
+            // Assign the text variation the text id
+            this.id_map[`frac${frac_count}numerator`] = numerator;
+            this.id_map[`frac${frac_count}denominator`] = denominator;
+        }
+        
         
     }
 
     render_text(export_token)
     {
-        // Add text
-
-        
-
-        // It is raw text, text is generated and retrievable through troika text
-        // Create a new text object
+        // Id into the reusable text object, used to access again and dispose of.
         let text = this.scene_context.reusable_text.get_new_text_id();
         
-        // Generate base x and base y
-        let base_x = this.baseline_cursor[0] + this.current_base_position[0];
-        let base_y = this.baseline_cursor[1] + this.current_base_position[1];
-        let base_z = this.current_base_position[2];
+        // Generate base x and base y [ verify ]
+        let base_x = this.baseline_cursor[0]*(this.baseline_vectors[0][0]) + this.baseline_cursor[1]*(this.baseline_vectors[1][0]) + this.current_base_position[0];
+        let base_y = this.baseline_cursor[0]*(this.baseline_vectors[0][1]) + this.baseline_cursor[1]*(this.baseline_vectors[1][1]) + this.current_base_position[1];
+        let base_z = this.baseline_cursor[0]*(this.baseline_vectors[0][2]) + this.baseline_cursor[1]*(this.baseline_vectors[1][2]) + this.current_base_position[2];
 
-        //console.log(base_x,base_y,base_z);
-
+        // Hardcoded font with hardcoded sizes per font.
         this.scene_context.reusable_text.text_objects[text].fontSize = export_token.size;
+        // Set text.
         this.scene_context.reusable_text.text_objects[text].text = export_token.textContent;
+        // Set position.
         this.scene_context.reusable_text.text_objects[text].position.set(base_x, base_y, base_z);
+        // Set the orientation
+        this.scene_context.reusable_text.text_objects[text].quaternion.set(this.orientation[0], this.orientation[1], this.orientation[2], this.orientation[3]);
         this.scene_context.reusable_text.text_objects[text].font = "../../public/fonts/latinmodern-math.otf";
         this.scene_context.reusable_text.text_objects[text].sync();
-        // Round the letter count up
-    
+
         // Add the newly created text id to the id_map
         this.add_text_id(text);
+        this.add_global_id(text);
 
-        // Assume the letters are of size/size and just use the division by two formula
-        let baselineSkip  = (export_token.totalLength)*export_token.size;
+        // Use the calculated normalized sum of the total length and multiply by export token size.
+        let baselineSkip = (export_token.totalLength)*export_token.size;
+
+        // Use the baseline skip to generate three skip floats
+        let skipx = baselineSkip*this.baseline_vectors[0][0];
+        let skipy = baselineSkip*this.baseline_vectors[0][1];
+        let skipz = baselineSkip*this.baseline_vectors[0][2];
+
+        // Use the last letter length to generate the the two vectors on the two unit axes.
+        let lastx0 = export_token.lastLetterLength*this.baseline_vectors[0][0];
+        let lastx1 = export_token.lastLetterLength*this.baseline_vectors[0][1];
+        let lastx2 = export_token.lastLetterLength*this.baseline_vectors[0][1];
+
+        let lasty0 = export_token.lastLetterLength*this.baseline_vectors[1][0];
+        let lasty1 = export_token.lastLetterLength*this.baseline_vectors[1][1];
+        let lasty2 = export_token.lastLetterLength*this.baseline_vectors[1][2];
+
+        //console.log(skipx,        skipy,        skipz,        lastx0,        lastx1,        lastx2,        lasty0,        lasty1,        lasty2)
 
         if ( export_token.superscriptContent != "" )
         {
@@ -172,7 +238,7 @@ class MathDecoder
             this.scene_context.reusable_text.text_objects[superscript_text].fontSize = export_token.size*0.4
             this.scene_context.reusable_text.text_objects[superscript_text].text = export_token.superscriptContent;
 
-            this.scene_context.reusable_text.text_objects[superscript_text].position.set(base_x+baselineSkip - export_token.lastLetterLength*0.2, base_y-export_token.lastLetterLength*0.1, base_z);
+            this.scene_context.reusable_text.text_objects[superscript_text].position.set(base_x+skipx - lastx0*0.2 - lasty0*0.1, base_y+skipy -lasty1*0.1- lastx1*0.2, base_z+skipz-lastx2*0.2- lasty2*0.1);
 
             this.scene_context.reusable_text.text_objects[superscript_text].font = "../../public/fonts/latinmodern-math.otf";
 
@@ -182,6 +248,7 @@ class MathDecoder
 
             // Add the super script to the id map
             this.add_superscript_id(superscript_text);
+            this.add_global_id(superscript_text);
         }
 
         if ( export_token.subscriptContent != "" )
@@ -191,7 +258,7 @@ class MathDecoder
 
             this.scene_context.reusable_text.text_objects[subscript_text].fontSize = export_token.size*0.4
             this.scene_context.reusable_text.text_objects[subscript_text].text = export_token.subscriptContent;
-            this.scene_context.reusable_text.text_objects[subscript_text].position.set(base_x+baselineSkip - export_token.lastLetterLength*0.2, base_y-export_token.lastLetterLength*1.5, base_z);
+            this.scene_context.reusable_text.text_objects[subscript_text].position.set(base_x + skipx - lastx0*0.2 - lasty0*1.2, base_y + skipy - lastx1*0.2 - lasty1*1.2, base_z + skipz - lastx2*0.2 - lasty2*1.2);
             this.scene_context.reusable_text.text_objects[subscript_text].font = "../../public/fonts/latinmodern-math.otf";
 
             this.scene_context.reusable_text.text_objects[subscript_text].sync();
@@ -200,10 +267,11 @@ class MathDecoder
 
             // Addd the sub script to the id map.
             this.add_subscript_id(subscript_text);
+            this.add_global_id(subscript_text);
 
         }
 
-        if ( export_token.superscriptContent != "" && export_token.subscriptContent != "")
+        if ( export_token.superscriptContent != "" || export_token.subscriptContent != "")
         {
             baselineSkip += export_token.lastLetterLength*0.4;
         }
@@ -220,15 +288,20 @@ class MathDecoder
     render_frac(export_token)
     {
 
-        // Generate base x and base y
-        let base_x = this.baseline_cursor[0] + this.current_base_position[0];
-        let base_y = this.baseline_cursor[1] + this.current_base_position[1];
-        let base_z = this.current_base_position[2];
+        // Generate base x and base y [ verify ]
+        let base_x = this.baseline_cursor[0]*(this.baseline_vectors[0][0]) + this.baseline_cursor[1]*(this.baseline_vectors[1][0]) + this.current_base_position[0];
+        let base_y = this.baseline_cursor[0]*(this.baseline_vectors[0][1]) + this.baseline_cursor[1]*(this.baseline_vectors[1][1]) + this.current_base_position[1];
+        let base_z = this.baseline_cursor[0]*(this.baseline_vectors[0][2]) + this.baseline_cursor[1]*(this.baseline_vectors[1][2]) + this.current_base_position[2];
 
         let m = this.scene_context.reusable_text.get_new_text_id();
         let n = this.scene_context.reusable_text.get_new_text_id();
         let k = this.scene_context.reusable_text.get_new_text_id();
-    
+
+        // Adding text ids.
+        this.add_global_id(m);
+        this.add_global_id(n);
+        this.add_global_id(k);
+
         // Find the max size between the arguments
         let max_size = ( export_token.operator_arguments_length[0] > export_token.operator_arguments_length[1] ) ? export_token.operator_arguments_length[0] : export_token.operator_arguments_length[1];
 
@@ -243,21 +316,44 @@ class MathDecoder
         // Define spaces for the first operand
     
         this.scene_context.reusable_text.text_objects[m].text = fraction_text ;
-        this.scene_context.reusable_text.text_objects[m].anchorX = export_token.alignX;
-        this.scene_context.reusable_text.text_objects[m].anchorY = export_token.alignY;
+        // this.scene_context.reusable_text.text_objects[m].anchorX = export_token.alignX;
+        // this.scene_context.reusable_text.text_objects[m].anchorY = export_token.alignY;
         this.scene_context.reusable_text.text_objects[m].position.set(base_x, base_y, base_z);
+        this.scene_context.reusable_text.text_objects[m].quaternion.set(this.orientation[0], this.orientation[1], this.orientation[2], this.orientation[3]);
         this.scene_context.reusable_text.text_objects[m].fontSize = 0.7*export_token.size;
         this.scene_context.reusable_text.text_objects[m].letterSpacing = 0;
         this.scene_context.reusable_text.text_objects[m].font = "../../public/fonts/latinmodern-math.otf";
         this.scene_context.reusable_text.text_objects[m].sync();
         
-        let size0 = (export_token.operator_arguments_length[0] == max_size ) ? ( max_size - export_token.operator_arguments_length[0] ) : ( max_size - export_token.operator_arguments_length[0] )*0.5;
-        let size1 = (export_token.operator_arguments_length[1] == max_size ) ? ( max_size - export_token.operator_arguments_length[1] ) : ( max_size - export_token.operator_arguments_length[1] )*0.5;
+        let size0 = (export_token.operator_arguments_length[0] == max_size ) ? ( max_size - export_token.operator_arguments_length[0] ) : ( max_size - export_token.operator_arguments_length[0] )*0.4;
+        let size1 = (export_token.operator_arguments_length[1] == max_size ) ? ( max_size - export_token.operator_arguments_length[1] ) : ( max_size - export_token.operator_arguments_length[1] )*0.4;
+
+        if ( size0 < 0.1  && size1 < 0.1)
+        {
+            size0 = max_size*0.2;
+            size1 = max_size*0.2;
+        }
+        
+        // Create two size based vectors on the unit vectos
+        let size0x = size0 * this.baseline_vectors[0][0];
+        let size0y = size0 * this.baseline_vectors[0][1];
+        let size0z = size0 * this.baseline_vectors[0][2];
+
+        let size1x = size0 * this.baseline_vectors[0][0];
+        let size1y = size0 * this.baseline_vectors[0][1];
+        let size1z = size0 * this.baseline_vectors[0][2];
+
+        // Create export sized vectors
+        let tokenx =  export_token.size * this.baseline_vectors[1][0];
+        let tokeny =  export_token.size * this.baseline_vectors[1][1];
+        let tokenz =  export_token.size * this.baseline_vectors[1][2];
+
 
         this.scene_context.reusable_text.text_objects[n].text = export_token.operator_arguments[0];
         this.scene_context.reusable_text.text_objects[n].anchorX = export_token.alignX;
         this.scene_context.reusable_text.text_objects[n].anchorY = export_token.alignY;
-        this.scene_context.reusable_text.text_objects[n].position.set(base_x + size0, base_y + export_token.size*0.3, base_z);
+        this.scene_context.reusable_text.text_objects[n].position.set(base_x + size0x + tokenx*0.3, base_y + tokeny*0.3 + size0y, base_z + size0z + tokenz*0.3);
+        this.scene_context.reusable_text.text_objects[n].quaternion.set(this.orientation[0], this.orientation[1], this.orientation[2], this.orientation[3]);
         this.scene_context.reusable_text.text_objects[n].fontSize = 0.7*export_token.size;
         this.scene_context.reusable_text.text_objects[n].font = "../../public/fonts/latinmodern-math.otf";
         this.scene_context.reusable_text.text_objects[n].sync();
@@ -265,7 +361,8 @@ class MathDecoder
         this.scene_context.reusable_text.text_objects[k].text = export_token.operator_arguments[1];
         this.scene_context.reusable_text.text_objects[k].anchorX = export_token.alignX;
         this.scene_context.reusable_text.text_objects[k].anchorY = export_token.alignY;
-        this.scene_context.reusable_text.text_objects[k].position.set(base_x + size1, base_y - export_token.size*0.3, base_z)*export_token.size;
+        this.scene_context.reusable_text.text_objects[k].position.set(base_x + size1x - tokenx*0.3, base_y + size1y - tokeny*0.3, base_z + size1z - tokenz*0.3)*export_token.size;
+        this.scene_context.reusable_text.text_objects[k].quaternion.set(this.orientation[0], this.orientation[1], this.orientation[2], this.orientation[3]);
         this.scene_context.reusable_text.text_objects[k].fontSize = 0.7*export_token.size;
         this.scene_context.reusable_text.text_objects[k].font = "../../public/fonts/latinmodern-math.otf";
         this.scene_context.reusable_text.text_objects[k].sync();
@@ -284,12 +381,13 @@ class MathDecoder
 
         // Reset the id map
         this.id_map = {
-            "" : {
-                text_count: 0,
-                frac_count: 0,
-                total_length: 0,
-            },
+            text_count: 0,
+            frac_count: 0,
+            total_length: 0,
+            all_ids: []
+           
         };
+
         // Reset the id array, helpful for disposing of text ids in bulk in an animation group
         this.ids_array = [];
 
@@ -299,17 +397,27 @@ class MathDecoder
             let export_token = export_tokens[i];
 
             // Increment the global total_length
-            this.id_map[""].total_length+=export_token.totalLength;
-
-            
+            this.id_map.total_length+=export_token.totalLength;
 
             // Set the base position.
             this.current_base_position[0] = export_token.position[0];
             this.current_base_position[1] = export_token.position[1];
             this.current_base_position[2] = export_token.position[2];
 
+            // If the last token had a larger size, then attempt to align to baseline.
+            if ( i > 0 )
+            {
+                // Access the last token
+                let last_token = export_tokens[i-1];
+
+                if ( last_token.size > export_token.size )
+                {
+                    this.current_base_position[1] -= ( last_token.size - export_token.size)*0.9;
+                }
+            }
+
             // If the export token has an id then initalize its inner contents
-            if ( export_token.id != "" )
+            if ( export_token.id != "" && this.id_map[export_token.id] == undefined )
             {
                 this.id_map[export_token.id] = {}
                 this.id_map[export_token.id].text_count = 0;
@@ -368,6 +476,14 @@ export default class MathParser
             "_": this.expand_subscript.bind(this),
         };
 
+        // Extinguish token logic
+        this.token_extinguishers = {
+            "<": this.extinguish_attribute_tag.bind(this),
+            "|": this.extinguish_operator.bind(this),
+            "^": this.extinguish_superscript.bind(this),
+            "_": this.extinguish_subscript.bind(this),
+        };
+
         // Check the attribute map
         this.attribute_map = {
             "color": this.parse_color_tag.bind(this),
@@ -421,6 +537,204 @@ export default class MathParser
 
     }
 
+    // Token extinguishers
+    extinguish_attribute_tag(math_string, psuedo_index)
+    {
+        // Skips the tag opener its self.
+        psuedo_index++;
+        
+        while ( math_string[psuedo_index] != '>' && psuedo_index < math_string.length )
+        {
+            // Discern the tag type, so if the next character sub white space is a slash character
+            while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length && math_string[psuedo_index] != '>' )
+            {
+
+                psuedo_index++;
+
+            }
+
+            // Now that the white space is clear check the next character, if alphabetic then parse attributes.
+
+            if ( math_string[psuedo_index] == '/' )
+            {
+                psuedo_index += 2;
+            
+                return psuedo_index;
+            }else
+            {
+                psuedo_index = this.extinguish_attribute_details(math_string);
+            }
+        }
+
+        
+        if ( math_string[psuedo_index] == '>' )
+        {
+
+            psuedo_index++;
+        }
+
+        return psuedo_index;
+    }
+    extinguish_attribute_details(math_string, psuedo_index)
+    {
+        while ( math_string[psuedo_index] != '>' && psuedo_index < math_string.length )
+        {
+            
+            // Discern the tag type, so if the next character sub white space is a slash character
+            while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length && math_string[psuedo_index] != '>' )
+            {
+
+                psuedo_index++;
+
+            }
+
+
+            // Other wise collect token up until the = equals sign
+            while ( math_string[psuedo_index] != '=' && psuedo_index < math_string.length && math_string[psuedo_index] != '>' )
+            {
+                psuedo_index++;
+            }
+
+            // Discern the tag type, so if the next character sub white space is a slash character
+            while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length )
+            {
+
+                psuedo_index++;
+
+            }
+
+            // Skip the equals sign token if it exists
+            if ( math_string[psuedo_index] == '=' )
+            {
+                psuedo_index++;
+            }
+
+            // Discern the tag type, so if the next character sub white space is a slash character
+            while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length )
+            {
+
+                psuedo_index++;
+
+            }
+
+            // Get the value of the behind the equals sign.
+            // Discern the tag type, so if the next character sub white space is a slash character
+            while( math_string[psuedo_index] != ' ' && psuedo_index < math_string.length && math_string[psuedo_index] != '>' )
+            {
+                
+                psuedo_index++;
+
+            }
+
+            // After the getting the value, we then use a nice table to store the attribute
+            if ( this.attribute_map[token] != undefined )
+            {
+                
+
+            }else
+            {
+                // Skip to the equals sign
+                while ( math_string != "=" && math_string[psuedo_index] != '>' && psuedo_index < math_string.length)
+                {
+                    psuedo_index++;
+                }
+                //Skip the white space
+                while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length )
+                {
+
+                    psuedo_index++;
+
+                }
+                // Skip the the whitespace
+                while ( math_string != " " && math_string[psuedo_index] != '>' && psuedo_index < math_string.length)
+                {
+                    psuedo_index++;
+                }
+            }
+
+        }
+
+        return psuedo_index;
+
+    }
+    extinguish_operator(math_string,psuedo_index)
+    {
+        // Skip past this tken.
+        psuedo_index++;
+
+        // Get operator name
+        // Discern the tag type, so if the next character sub white space is a slash character
+        while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length)
+        {
+            psuedo_index++;
+        }
+
+    
+        // Get name up to first curly brace or space
+        while( math_string[psuedo_index] != ' ' && math_string[psuedo_index] != '{' && psuedo_index < math_string.length && math_string[psuedo_index] != '>' && math_string[psuedo_index] != '<')
+        {
+
+            psuedo_index++;
+        }
+
+        // Clear the white space if there is any
+        while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length)
+        {
+            psuedo_index++;
+        }
+
+        // Create an open close status to tell to terminate when a space is encountered upon a close
+        let open = 0;
+        while ( psuedo_index < math_string.length && math_string[psuedo_index] != '>' && math_string[psuedo_index] != '<')
+        {
+            
+            if ( math_string[psuedo_index] == "}")
+            {   
+                open--;
+
+            } else if ( math_string[psuedo_index] != '{' )
+            {
+
+            }else
+            {
+
+            
+                open++;
+
+            }
+            psuedo_index++;
+
+            // If the argument holders are closed, then search for the next non white space character.
+            if ( open <= 0  )
+            {
+                let temp_index = 0;
+                while( math_string[psuedo_index] == ' ' && psuedo_index < math_string.length)
+                {
+                    temp_index++;
+                    psuedo_index++;
+                }
+
+                if ( math_string[psuedo_index] != '{')
+                {
+                    psuedo_index -= temp_index;
+                    break;
+                }
+            }
+
+        }
+    
+        return psuedo_index;
+
+    }
+    extinguish_superscript(psuedo_index)
+    {
+        
+    }
+    extinguish_subscript(psuedo_index)
+    {
+        
+    }
+
     // Determine open or closed tag, and parse the attributes if open, otherwise
     expand_attribute_tag(math_string, export_tokens)
     {
@@ -461,9 +775,6 @@ export default class MathParser
             this.token_index++;
         }
 
-        
-        
-        
 
     }
 
@@ -753,9 +1064,10 @@ export default class MathParser
             if ( this.current_export_token.operator_name != "" || this.current_export_token.textContent != "" )
             {
                 export_tokens.push(this.current_export_token);
-                this.current_export_token = new MathParserNode();
 
-                
+                let new_token = new MathParserNode();
+                new_token.copy_attributes(this.current_export_token);
+                this.current_export_token = new_token;                
             }
 
             export_tokens.push(operator_token);
@@ -972,8 +1284,60 @@ export default class MathParser
         return;
     }
 
+    get_text_meta_data(math_string)
+    {
+
+        let total_length = 0;
+
+        let psuedo_index = 0;
+
+        while ( psuedo_index < math_string.length )
+        {
+            if ( this.token_extinguishers[math_string[psuedo_index]] != undefined )
+            {
+                psuedo_index = this.token_extinguishers[ math_string[psuedo_index] ](math_string, psuedo_index);
+            }else
+            if ( this.length_map[math_string[psuedo_index]] != undefined )
+            {
+                total_length += this.length_map[math_string[psuedo_index]];
+
+            }else
+            {
+                total_length += 0.44;
+            }
+
+            psuedo_index++;
+            
+        }
+    
+        return total_length;
+    }
+
+    // Here we can set the baseline vectors
+    set_base_line_vectors(vector0, vector1, orientation)
+    {
+        this.math_decoder.baseline_vectors[0][0] = vector0.x;
+        this.math_decoder.baseline_vectors[0][1] = vector0.y;
+        this.math_decoder.baseline_vectors[0][2] = vector0.z;
+//
+        this.math_decoder.baseline_vectors[1][0] = vector1.x;
+        this.math_decoder.baseline_vectors[1][1] = vector1.y;
+        this.math_decoder.baseline_vectors[1][2] = vector1.z;
+
+        
+        this.math_decoder.orientation[0] = orientation.x;
+        this.math_decoder.orientation[1] = orientation.y;
+        this.math_decoder.orientation[2] = orientation.z;
+        this.math_decoder.orientation[3] = orientation.w;
+
+        //console.log(this.math_decoder.baseline_vectors);
+        //this.math_decoder.orientation = plane_normal;
+
+    }
+
     parse_math(math_string)
     {
+        //console.log(math_string);
         // Reset the parse string
         this.token_index = 0;
 
@@ -984,7 +1348,7 @@ export default class MathParser
         this.current_export_token = new MathParserNode();
 
         let export_tokens = [];
-
+    
         while ( this.token_index < math_string.length )
         {
             if ( this.token_map[math_string[this.token_index]] != undefined )
@@ -993,7 +1357,6 @@ export default class MathParser
                 
             }else
             {
-
                 // Sum the total text content length
                 if ( this.length_map[math_string[this.token_index]] != undefined )
                 {
@@ -1017,11 +1380,10 @@ export default class MathParser
         // Export the current export token
         if ( this.current_export_token.textContent != "" )
         {
-            
+         
             export_tokens.push(this.current_export_token);
         }
         
-
         // Return the expression as an id map for example frac0, frac1, then the components of would be numerator0 denominator1
         // Text contnet is just t0 t1
 

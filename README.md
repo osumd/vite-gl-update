@@ -22,15 +22,10 @@ Then also denote the adjacency of the sections, so that edges in their respectiv
 
 ## Features: Math Parser Utility
   uses case:
-    as a user I want to use a math parser tool to generate and add text to the animation group that listens to latex symbols
-    as a user I want the math parser tool to add the text to the scene, but also have an option in the event system
-    to talk to the math parser, and also the math parser needs to talk to the reusable text engine to dispose of the text.
-    as a user blocks of text will be given ids and operators and their parts will also be given ids for animation.
-    
-    add space count adjustment from text level operations in the parsing effect
-
-    check for a cooresponding dual
-
+    as a user I want to use a math parser tool to generate and add text to the animation group that listens to latex symbols 
+      way 1 : event animation system.add_math("math text", dfasdfas, from, to);
+      way 2 : let id = math_parse(); event animation system.add_math();
+      way 3 : let id_map = fui.make_ui(); event_animation system.id
     usage (later): 
       let text_id = math_parser.parse( (-1.0, -1.0) "|frac{a}{b}{c}" );
       eventSystem.position_to(text_id.frac0, duration: 1, (1.0, -1.0));
@@ -39,6 +34,15 @@ Then also denote the adjacency of the sections, so that edges in their respectiv
   TO-DO:
     pull in frustrum details to build the original bounding container, and axis system.
     math parser should return length details for the total expression as well as the micro expressions.
+    
+
+  as a user I want frustrum UI to have reset the transforms on nodes
+  as a user I want frustrum UI to have an inital render capabilites and a render update capabilites or a switch between the two states upon render.
+    way 1 : the nodes store their render status/group ids, then in the render text their positions are essentially just changed to the newly calculated position stores the render status.
+    way 2 : a parameter is passed to the function suggesting re-render, then it just changes the underlying 
+  as a user I want to either reuse or dispose of text ids if they were previously rendered
+    way 1 : if previously rendered then all the of text_ids are disposed of through reusable text, then render text takes place.
+
     
     
 

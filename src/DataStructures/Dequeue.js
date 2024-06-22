@@ -103,7 +103,7 @@ class Dequeue extends React.Component
 // }
 // for( let i = 0; i < n; i ++)
 // {
-//     console.log(Q.pop_front())
+//     console.log(Q.pop_back())
 // }
 
 
