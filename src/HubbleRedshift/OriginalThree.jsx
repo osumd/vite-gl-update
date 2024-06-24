@@ -105,17 +105,16 @@ function OriginalThree ()
             // Animation loop   
             const animate = () => {
 
-                if ( Math.floor(clock.elapsedTime*10) % 10  == 0)
-                {
-                    //fui.parse("Hello");
-                }
-                
                 // Update the on animate settings
                 scene_context.onAnimate.update();
 
                 renderer.render(scene, camera);
                 
                 renderer.setClearColor(new THREE.Color(0x202020));
+
+                electric.simulate(clock);
+
+                
                 
                 //Fire animation subroutines
                 scene_context.eventSystem.update(clock.getDelta());

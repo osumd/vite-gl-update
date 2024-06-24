@@ -173,11 +173,11 @@ export default class EuclideanElectric
 
             void main()
             {
-                gl_FragColor = vec4(1.0, vUv.y, 0.0, 1.0);
+                gl_FragColor = vec4( sin(fract(vNorm.xy*10.5*vUv))- cos(fract(vNorm.xy*10.5*vUv)), sin(vUv.x), 1.0);
+                gl_FragColor = vec4(vNorm, 1.0);
             }
             
         `
-
         let material = new THREE.ShaderMaterial({
             vertexShader: vertex_shader,
             fragmentShader: fragment_shader,
@@ -219,8 +219,10 @@ export default class EuclideanElectric
             this.boundary_gcd[1] = euclidean_algorithm( this.space_mod[1], this.space_mod[2] );
             this.boundary_gcd[2] = euclidean_algorithm( this.space_mod[0], this.space_mod[1] );
 
+            // Set charge positivity.
+
             // Generate some way of measure the charge on the particle
-            let particle_charge = (this.boundary_gcd[0] + this.boundary_gcd[1] + this.boundary_gcd[2] );
+            let particle_charge = (this.boundary_gcd[0] + this.boundary_gcd[1] + this.boundary_gcd[2] ) ;
 
             // Store the integer coordinate
             this.boundary_particle_coordinates.push( [this.boundary_gcd[0], this.boundary_gcd[1], this.boundary_gcd[2], particle_charge] );
@@ -228,7 +230,6 @@ export default class EuclideanElectric
             // Advance with the sub results.
             this.advance_along_boundary();
 
-            
 
             max_particle_charge = max_e(max_particle_charge, particle_charge);
 
@@ -251,6 +252,8 @@ export default class EuclideanElectric
         // Vector difference between the current particle and the other one.
         let difference_vector = new THREE.Vector3(0,0,0);
 
+        
+
         for( let p = 0 ; p < this.boundary_particle_coordinates.length; p++ )
         {
             // Set up the main particle coordinate.
@@ -261,8 +264,11 @@ export default class EuclideanElectric
             electric_field_vector.y = 0;
             electric_field_vector.z = 0;
 
+            // Set up temp vector
+            let temp_vector = new THREE.Vector3(main_particle_coordinate[0],main_particle_coordinate[1],main_particle_coordinate[2]);
+
             // Calculate electric field with respect to the current particle.
-            for ( let c = 0; c < this.boundary_particle_coordinates; c++ )
+            for ( let c = 0; c < this.boundary_particle_coordinates.length; c++ )
             {
                 // Something something self forces?
                 if ( c == p )
@@ -271,28 +277,49 @@ export default class EuclideanElectric
                 }
 
                 // Set up the other coordinate.
-                let other_particle_coordinate = this.boundary_particle_coordinates[p];
+                let other_particle_coordinate = this.boundary_particle_coordinates[c];
 
                 // Calculate the difference
                 difference_vector.x = main_particle_coordinate[0] - other_particle_coordinate[0];
                 difference_vector.y = main_particle_coordinate[1] - other_particle_coordinate[1];
                 difference_vector.z = main_particle_coordinate[2] - other_particle_coordinate[2];
-
-                // q*x-x1/|x-x1|^3
-                difference_vector.divideScalar( Math.pow( difference_vector.length(),3) ).multiplyScalar(other_particle_coordinate[3]);
                 
-                // Then E(x) = sum p(x)
-                electric_field_vector.add(difference_vector);
+                //console.log(difference_vector);
+
+                if ( difference_vector.length() == 0)
+                {
+            
+                    
+                } else
+                {
+                    // q*x-x1/|x-x1|^3
+                    difference_vector.divideScalar( Math.pow( difference_vector.length(),3) ).multiplyScalar(other_particle_coordinate[3]);
+                    electric_field_vector.add(difference_vector);
+                }
+
+                
+
+    
+                
+
+                
 
             }
+
+            
+            //console.log(electric_field_vector);
+            temp_vector.add(electric_field_vector.multiplyScalar(1/10));
+
+            this.boundary_particle_coordinates[p][0] = temp_vector.x;
+            this.boundary_particle_coordinates[p][1] = temp_vector.y;
+            this.boundary_particle_coordinates[p][2] = temp_vector.z;
+            //this.boundary_particle_coordinates[p][3] += electric_field_vector.multiplyScalar(1/10).z;
+
 
         }
 
     }
 
-    
-
-    
     // CPU Edition
     inner_mesh_method(x,y,z,i,j,k, particle_charge, px, py, pz)
     {
@@ -353,7 +380,8 @@ export default class EuclideanElectric
             let x3 = gcd(back, front);
             
             // Try to calculate a normal for our dot normal electric matrix style.
-            let n = x1.clone().sub(x0).cross(x2.clone().sub(x0));
+            let n = x3.clone().sub(x1).cross(x2.clone().sub(x1));
+
             // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
             
             // Generate distance from the current location to the particle center
@@ -363,24 +391,29 @@ export default class EuclideanElectric
             let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
 
             // Let volume difference be measurable
-            x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+            // x0.multiplyScalar( particle_charge* 1/distance);
+            // x1.multiplyScalar( particle_charge* 1/distance);
+            // x2.multiplyScalar( particle_charge* 1/distance);
+            // x3.multiplyScalar( particle_charge* 1/distance);
 
-            x0.normalize();
-            x1.normalize();
-            x2.normalize();
-            x3.normalize();
+            // Other translation
+            x0.multiplyScalar( particle_charge* 1/distance);
+            x1.multiplyScalar( particle_charge* 1/distance);
+            x2.multiplyScalar( particle_charge* 1/distance);
+            x3.multiplyScalar( particle_charge* 1/distance);
+
+            let E = new THREE.Euler( px/i * (2*3.14),  py/j * (2*3.14), pz/k * (2*3.14) );
 
             x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
             x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
             x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
             x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
-            //x0.multiply(volume_difference);
-            //x1.multiply(volume_difference);
-            //x2.multiply(volume_difference);
 
+            x0.applyEuler(E);
+            x1.applyEuler(E);
+            x2.applyEuler(E);
+            x3.applyEuler(E);
+            
             // Then just push the verticies into the element mesh
             this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
             this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
@@ -417,14 +450,14 @@ export default class EuclideanElectric
             let right = neighbors[2];
             let top = neighbors[3];
             let front = neighbors[4];
-
-            let x0 = gcd(right, origin);
-            let x1 = gcd(origin, right);
+    
+            let x0 = gcd(back, bottom);
+            let x1 = gcd(top, front);
             let x2 = gcd(top, bottom);
             let x3 = gcd(back, front);
             
             // Try to calculate a normal for our dot normal electric matrix style.
-            let n = x1.clone().sub(x0).cross(x2.clone().sub(x0));
+            let n = x2.clone().sub(x0).cross(x3.clone().sub(x0));
             // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
             
             // Generate distance from the current location to the particle center
@@ -479,221 +512,295 @@ export default class EuclideanElectric
             this.boundary_element_mesh.index_slot1 += 4;
         }
 
-        if ( neighbors.length == 5 && x >= i-1)
-        {
+        // if ( neighbors.length == 5 && y == 0 )
+        // {   
+            
+        //     // Then define all of the components of the neighbors
+        //     let left = neighbors[0];
+        //     let back = neighbors[1];
+            
+        //     let right = neighbors[2];
+        //     let top = neighbors[3];
+        //     let front = neighbors[4];
+
+        //     let x0 = gcd(right, left);
+        //     let x1 = gcd(left, right);
+        //     let x2 = gcd(top, origin);
+        //     let x3 = gcd(back, front);
+            
+        //     // Try to calculate a normal for our dot normal electric matrix style.
+        //     let n = x2.clone().sub(x0).cross(x3.clone().sub(x0));
+        //     // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
+            
+        //     // Generate distance from the current location to the particle center
+        //     //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
+        //     let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
+
+        //     let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
+
+        //     // Let volume difference be measurable
+        //     x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+
+        //     x0.normalize();
+        //     x1.normalize();
+        //     x2.normalize();
+        //     x3.normalize();
+
+        //     x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z +2.0);
+        //     x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z +2.0);
+        //     x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z +2.0);
+        //     x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z +2.0);
+        //     //x0.multiply(volume_difference);
+        //     //x1.multiply(volume_difference);
+        //     //x2.multiply(volume_difference);
+
+        //     // Then just push the verticies into the element mesh
+        //     this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
+        //     this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
+        //     this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
+        //     this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
+
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+
+        //     this.boundary_element_mesh.push_uv(0,0);
+        //     this.boundary_element_mesh.push_uv(1,0);
+        //     this.boundary_element_mesh.push_uv(1,1);
+        //     this.boundary_element_mesh.push_uv(0,1);
+
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
+
+        //     this.boundary_element_mesh.index_slot1 += 4;
+        // }
+
+        // if ( neighbors.length == 5 && x >= i-1)
+        // {
             
 
-            // Then define all of the components of the neighbors
-            let left = neighbors[0];
-            let bottom = neighbors[1];
-            let back = neighbors[2];
-            let top = neighbors[3];
-            let front = neighbors[4];
+        //     // Then define all of the components of the neighbors
+        //     let left = neighbors[0];
+        //     let bottom = neighbors[1];
+        //     let back = neighbors[2];
+        //     let top = neighbors[3];
+        //     let front = neighbors[4];
 
-            let x0 = gcd(origin, left);
-            let x1 = gcd(left, origin);
-            let x2 = gcd(top, bottom);
-            let x3 = gcd(back, front);
+        //     let x0 = gcd(origin, left);
+        //     let x1 = gcd(left, origin);
+        //     let x2 = gcd(top, bottom);
+        //     let x3 = gcd(back, front);
             
-            // Try to calculate a normal for our dot normal electric matrix style.
-            let n = x1.clone().sub(x0).cross(x2.clone().sub(x0));
-            // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
+        //     // Try to calculate a normal for our dot normal electric matrix style.
+        //     let n = x2.clone().sub(x0).cross(x3.clone().sub(x0));
+        //     // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
             
-            // Generate distance from the current location to the particle center
-            //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
-            let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
+        //     // Generate distance from the current location to the particle center
+        //     //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
+        //     let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
 
-            let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
+        //     let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
 
-            // Let volume difference be measurable
-            x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     // Let volume difference be measurable
+        //     x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
 
-            x0.normalize();
-            x1.normalize();
-            x2.normalize();
-            x3.normalize();
+        //     x0.normalize();
+        //     x1.normalize();
+        //     x2.normalize();
+        //     x3.normalize();
 
-            x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
-            x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
-            x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
-            x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
-            //x0.multiply(volume_difference);
-            //x1.multiply(volume_difference);
-            //x2.multiply(volume_difference);
+        //     x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
+        //     x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
+        //     x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
+        //     x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
+        //     //x0.multiply(volume_difference);
+        //     //x1.multiply(volume_difference);
+        //     //x2.multiply(volume_difference);
 
-            // Then just push the verticies into the element mesh
-            this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
-            this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
-            this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
-            this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
+        //     // Then just push the verticies into the element mesh
+        //     this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
+        //     this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
+        //     this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
+        //     this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
 
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
 
-            this.boundary_element_mesh.push_uv(0,0);
-            this.boundary_element_mesh.push_uv(1,0);
-            this.boundary_element_mesh.push_uv(1,1);
-            this.boundary_element_mesh.push_uv(0,1);
+        //     this.boundary_element_mesh.push_uv(0,0);
+        //     this.boundary_element_mesh.push_uv(1,0);
+        //     this.boundary_element_mesh.push_uv(1,1);
+        //     this.boundary_element_mesh.push_uv(0,1);
 
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
 
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
 
-            this.boundary_element_mesh.index_slot1 += 4;
+        //     this.boundary_element_mesh.index_slot1 += 4;
 
-        }
+        // }
         
-        if ( neighbors.length == 5 && y >= j-1)
-        {
-            // Then define all of the components of the neighbors
-            let left = neighbors[0];
-            let bottom = neighbors[1];
-            let back = neighbors[2];
+        // if ( neighbors.length == 5 && y >= j-1)
+        // {
+        //     // Then define all of the components of the neighbors
+        //     let left = neighbors[0];
+        //     let bottom = neighbors[1];
+        //     let back = neighbors[2];
             
-            let right = neighbors[3];
-            let front = neighbors[4];
+        //     let right = neighbors[3];
+        //     let front = neighbors[4];
 
-            let x0 = gcd(right, left);
-            let x1 = gcd(left, right);
-            let x2 = gcd(origin, bottom);
-            let x3 = gcd(back, front);
+        //     let x0 = gcd(right, left);
+        //     let x1 = gcd(left, right);
+        //     let x2 = gcd(origin, bottom);
+        //     let x3 = gcd(back, front);
             
-            // Try to calculate a normal for our dot normal electric matrix style.
-            let n = x1.clone().sub(x0).cross(x2.clone().sub(x0));
-            // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
+        //     // Try to calculate a normal for our dot normal electric matrix style.
+        //     let n = x2.clone().sub(x0).cross(x3.clone().sub(x0));
+        //     // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
             
-            // Generate distance from the current location to the particle center
-            //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
-            let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
+        //     // Generate distance from the current location to the particle center
+        //     //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
+        //     let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
 
-            let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
+        //     let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
 
-            // Let volume difference be measurable
-            x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     // Let volume difference be measurable
+        //     x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
 
-            x0.normalize();
-            x1.normalize();
-            x2.normalize();
-            x3.normalize();
+        //     x0.normalize();
+        //     x1.normalize();
+        //     x2.normalize();
+        //     x3.normalize();
 
-            x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
-            x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
-            x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
-            x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
-            //x0.multiply(volume_difference);
-            //x1.multiply(volume_difference);
-            //x2.multiply(volume_difference);
+        //     x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
+        //     x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
+        //     x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
+        //     x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
+        //     //x0.multiply(volume_difference);
+        //     //x1.multiply(volume_difference);
+        //     //x2.multiply(volume_difference);
 
-            // Then just push the verticies into the element mesh
-            this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
-            this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
-            this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
-            this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
+        //     // Then just push the verticies into the element mesh
+        //     this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
+        //     this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
+        //     this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
+        //     this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
 
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
 
-            this.boundary_element_mesh.push_uv(0,0);
-            this.boundary_element_mesh.push_uv(1,0);
-            this.boundary_element_mesh.push_uv(1,1);
-            this.boundary_element_mesh.push_uv(0,1);
+        //     this.boundary_element_mesh.push_uv(0,0);
+        //     this.boundary_element_mesh.push_uv(1,0);
+        //     this.boundary_element_mesh.push_uv(1,1);
+        //     this.boundary_element_mesh.push_uv(0,1);
 
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
 
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
 
-            this.boundary_element_mesh.index_slot1 += 4;
+        //     this.boundary_element_mesh.index_slot1 += 4;
 
-        }
+        // }
         
-        if ( neighbors.length == 5 && z >= k-1)
-        {
-            // Then define all of the components of the neighbors
-            let left = neighbors[0];
-            let bottom = neighbors[1];
-            let back = neighbors[2];
-            let right = neighbors[3];
-            let top = neighbors[4];
+        // if ( neighbors.length == 5 && z >= k-1)
+        // {
+        //     // Then define all of the components of the neighbors
+        //     let left = neighbors[0];
+        //     let bottom = neighbors[1];
+        //     let back = neighbors[2];
+        //     let right = neighbors[3];
+        //     let top = neighbors[4];
 
-            let x0 = gcd(right, left);
-            let x1 = gcd(left, right);
-            let x2 = gcd(top, bottom);
-            let x3 = gcd(back, origin);
+        //     let x0 = gcd(right, left);
+        //     let x1 = gcd(left, right);
+        //     let x2 = gcd(top, bottom);
+        //     let x3 = gcd(back, origin);
             
-            // Try to calculate a normal for our dot normal electric matrix style.
-            let n = x1.clone().sub(x0).cross(x2.clone().sub(x0));
-            // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
+        //     // Try to calculate a normal for our dot normal electric matrix style.
+        //     let n = x2.clone().sub(x0).cross(x3.clone().sub(x0));
+        //     // insert function to find greatest dot product amongst the 3 axis to determine relationship, then achieve "correct" normal.
             
-            // Generate distance from the current location to the particle center
-            //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
-            let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
+        //     // Generate distance from the current location to the particle center
+        //     //let relative_position = new THREE.Vector3(i,j,k) + new THREE.Vector3(x,y,z);
+        //     let distance = Math.floor( Math.sqrt( x*x + y*y + z*z ) );
 
-            let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
+        //     let volume_difference = this.boundary_volume[1].clone().sub(this.boundary_volume[0]);
 
-            // Let volume difference be measurable
-            x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
-            x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     // Let volume difference be measurable
+        //     x0.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x1.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x2.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
+        //     x3.multiplyScalar( particle_charge* 1/distance).add(new THREE.Vector3(px,py,pz));
 
-            x0.normalize();
-            x1.normalize();
-            x2.normalize();
-            x3.normalize();
+        //     x0.normalize();
+        //     x1.normalize();
+        //     x2.normalize();
+        //     x3.normalize();
 
-            x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
-            x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
-            x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
-            x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
-            //x0.multiply(volume_difference);
-            //x1.multiply(volume_difference);
-            //x2.multiply(volume_difference);
+        //     x0 = new THREE.Vector3(x0.x * volume_difference.x, x0.y * volume_difference.y, x0.z *volume_difference.z);
+        //     x1 = new THREE.Vector3(x1.x * volume_difference.x, x1.y * volume_difference.y, x1.z *volume_difference.z);
+        //     x2 = new THREE.Vector3(x2.x * volume_difference.x, x2.y * volume_difference.y, x2.z *volume_difference.z);
+        //     x3 = new THREE.Vector3(x3.x * volume_difference.x, x3.y * volume_difference.y, x3.z *volume_difference.z);
+        //     //x0.multiply(volume_difference);
+        //     //x1.multiply(volume_difference);
+        //     //x2.multiply(volume_difference);
 
-            // Then just push the verticies into the element mesh
-            this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
-            this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
-            this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
-            this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
+        //     // Then just push the verticies into the element mesh
+        //     this.boundary_element_mesh.push_vertex(x0.x, x0.y, x0.z);
+        //     this.boundary_element_mesh.push_vertex(x1.x, x1.y, x1.z);
+        //     this.boundary_element_mesh.push_vertex(x2.x, x2.y, x2.z);
+        //     this.boundary_element_mesh.push_vertex(x3.x, x3.y, x3.z);
 
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
-            this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
+        //     this.boundary_element_mesh.push_normal(n.x,n.y,n.z);
 
-            this.boundary_element_mesh.push_uv(0,0);
-            this.boundary_element_mesh.push_uv(1,0);
-            this.boundary_element_mesh.push_uv(1,1);
-            this.boundary_element_mesh.push_uv(0,1);
+        //     this.boundary_element_mesh.push_uv(0,0);
+        //     this.boundary_element_mesh.push_uv(1,0);
+        //     this.boundary_element_mesh.push_uv(1,1);
+        //     this.boundary_element_mesh.push_uv(0,1);
 
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
 
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
-            this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+2);
+        //     this.boundary_element_mesh.push_element(this.boundary_element_mesh.index_slot1+3);
 
-            this.boundary_element_mesh.index_slot1 += 4;
+        //     this.boundary_element_mesh.index_slot1 += 4;
 
-        }
+        // }
+        
+
         
 
 
@@ -709,24 +816,20 @@ export default class EuclideanElectric
             // Get the charge of the particle
             let main_particle_coordinate = this.boundary_particle_coordinates[p];
 
-            
-
             // Get the particle charge.
-            let particle_charge = main_particle_coordinate[3];
+            let particle_charge = Math.abs(main_particle_coordinate[3]);
 
             // Calculate the dimensions of the mesh boundary
-            let i = Math.ceil(particle_charge/3);
-            let j = Math.ceil(particle_charge/3);
-            let k = Math.ceil(particle_charge/3);
+            let i = Math.ceil( particle_charge/3 );
+            let j = Math.ceil( particle_charge/3 );
+            let k = Math.ceil( particle_charge/3 );
 
-            console.log(main_particle_coordinate, i,j,k);
+            //console.log(main_particle_coordinate, i,j,k);
 
             // Calculate position of particle
             let px = main_particle_coordinate[0];
             let py = main_particle_coordinate[1];
             let pz = main_particle_coordinate[2];
-
-            
 
             for ( let x = 0; x < i; x++ )
             {
@@ -735,7 +838,7 @@ export default class EuclideanElectric
                     for ( let z = 0; z < k; z++ )
                     {
                         // Then we generate and build the mesh.
-                        this.inner_mesh_method(x,y,z,i,j,k, particle_charge, px*5.0, py*5.0, pz*5.0);
+                        this.inner_mesh_method(x,y,z,i,j,k, Math.abs(particle_charge), px, py, pz);
                         
                     }
                 }
@@ -747,12 +850,34 @@ export default class EuclideanElectric
 
     }
 
-    
+    update_mesh()
+    {
+        this.boundary_element_buffer_geometry.setAttribute("position", new THREE.BufferAttribute(this.boundary_element_mesh.vertices, 3));
+        this.boundary_element_buffer_geometry.setAttribute("normal", new THREE.BufferAttribute(this.boundary_element_mesh.normals, 3));
+        this.boundary_element_buffer_geometry.setAttribute("uv", new THREE.BufferAttribute(this.boundary_element_mesh.uvs, 2));
+
+        this.boundary_element_buffer_geometry.setIndex(new THREE.BufferAttribute(this.boundary_element_mesh.elements, 1));
+        
+        this.boundary_element_buffer_geometry.attributes.position.needsUpdate = true;
+        this.boundary_element_buffer_geometry.attributes.normal.needsUpdate = true;
+        this.boundary_element_buffer_geometry.attributes.uv.needsUpdate = true;
+        this.boundary_element_buffer_geometry.index.needsUpdate = true;
+    }
+
 
     // Develops on the integer coordinatep
-    simulate()
+    simulate(clock)
     {
-        
+        this.boundary_element_mesh.reset();
+
+        //this.boundary_particle_coordinates[0][3] += clock.elapsedTime;
+
+        // this.advect_boundary_particles();
+        // this.mesh_boundary_particles();
+        // this.update_mesh();
+
+
+
     }
     
 

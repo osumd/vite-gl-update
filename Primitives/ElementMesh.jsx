@@ -95,4 +95,17 @@ export default class ElementMesh
         this.elements[this.elements_index++] = x0;
     }
 
+    reset()
+    {
+        // Stores the indexes and two custom index pointers.
+        this.vertices_index = 0;
+        this.elements_index = 0;
+        this.uvs_index = 0;
+        this.normals_index = 0;
+
+        // Stores the two custom index pointers
+        this.index_slot1 = 0;
+        this.index_slot2 = 0;
+    }
+
 }
