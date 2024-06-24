@@ -12,32 +12,6 @@ export default class LamesTheorem
         this.last_camera = [0,0,0];
     }
 
-    get_camera_far_plane()
-    {
-        // Get the forward vector
-        // Get the rotation of the camera
-        let camera_rotation = this.scene_context.camera.quaternion.clone();
-        let camera_forward  = new THREE.Vector3(0,0,-1).applyQuaternion(camera_rotation).normalize();
-
-        this.last_camera[0] = camera_forward;
-        this.last_camera[1] = camera_rotation;
-
-        let camera_up = this.scene_context.camera.up;
-        let camera_right = camera_forward.clone().cross(camera_up).normalize();
-
-        let camera_fov = this.scene_context.camera.fov;
-        let camera_far = this.scene_context.camera.far;
-
-        let camera_far_half_distance = 10*Math.tan(((camera_fov)*(3.14159265359/180))/2);
-        let camera_far_center = this.scene_context.camera.position.clone().add(camera_forward.clone().multiplyScalar(10));
-        let camera_left_corner = camera_far_center.clone().sub(camera_right.multiplyScalar(camera_far_half_distance));
-            
-        //this.scene_context.instanceMachine.add_xy_sphere(camera_left_corner, Math.random());
-        //this.scene_context.eventSystem.add_text({text: camera_far_half_distance.toString()});
-        
-        //console.log("omg animate");
-    }    
-
     euclidean_algorithm(a,b)
     {
         
@@ -173,25 +147,7 @@ export default class LamesTheorem
 
     play()
     {
-        // I need a way to place text into specific portion of the view frustrum.
-        //let gcd = this.euclidean_algorithm(252, 198);
 
-        //let bezout = this.bezouts_identity(252,198);
-        //console.log(Math.log10(198));
-        //let a = 252;
-        //let b = 198;
-        //let alpha = (1+Math.sqrt(5))/2;
-        //let n = this.euclidean_divisions(252, 198, 0);
-
-        //console.log(this.fibonacci(10));
-        //console.log(this.fibonacci(n+1) > Math.pow(alpha,n-1));
-        //console.log(b > Math.pow(alpha, n-1));
-
-        //console.log(Math.log10(b) > (n-1)*Math.log10(alpha));
-        //console.log(Math.log10(b) > (n-1)/5);
-        
-        
-        
         
 
     }

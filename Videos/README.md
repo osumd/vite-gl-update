@@ -24,7 +24,8 @@ Scene (Scene Name):
                 Fibbonaci surfaces arrise from each fibonnaci sequence, where the sequence identity is describe on scene, as well as current fibbonaci 
                 number [ uses memoization ], the surfaces are lighting defined by fibbonaci numbers, and is kind of like a fractal. :- s0
 
-                A few steps of euclidean algorithm are displayed in a column on the left side of the screen, then the recurrence relation for the euclidean algorithm shows up centered in the right side column of the screen.
+                A few steps of euclidean algorithm are displayed in a column on the left side of the screen, then the recurrence relation for the euclidean algorithm shows up centered in the right side column of the screen. :- s2
+                
 
     Subscene 2.
         Script:

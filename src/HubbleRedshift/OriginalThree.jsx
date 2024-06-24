@@ -22,8 +22,11 @@ import MathParser from '../MathParser/MathParser.js';
 // Import frustrum UI
 import {FUIDoc, FUIParser} from '../EventAnimation/FrustrumUI.js';
 
-import './HubbleRedshift.css'
 
+
+import './HubbleRedshift.css'
+import LamesTheorem from '../../Videos/Scenes/LamesTheorem.jsx';
+import EuclideanElectric from '../../Videos/Scenes/EuclideanElectric.jsx';
 function create_scene_context(scene, renderer)
 {
     //may to need to create reference to scene and return it
@@ -62,9 +65,6 @@ function OriginalThree ()
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.z = 5;
 
-            
-            //camera.quaternion.z = 2;
-
             const canvas = document.getElementById("myThreeJsCanvas");
 
             // Create renderer
@@ -77,10 +77,8 @@ function OriginalThree ()
             
             document.body.appendChild(renderer.domElement);
 
-           const controls = new OrbitControls(camera, renderer.domElement);
+            const controls = new OrbitControls(camera, renderer.domElement);
 
-           
-            
             const geometry = new THREE.BoxGeometry();
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
@@ -97,26 +95,9 @@ function OriginalThree ()
             let scene_context = create_scene_context(scene, renderer);
             // Set up ref to the camera
             scene_context.camera = camera;
-            //console.log(text_group.text0numerator);
 
-            // let fui = new FUIDoc(scene_context);
-            // let tree = fui.parse(`
-            
-            //     < width='0.5' padding='[0.0, 0.0, 0.0, 0.0]'>
-            //         <fontSize='2.0' display='inline'>block</>
-            //         <fontSize='3.5'>block</>
-            //     </>
-                
-            //     <>Block</>
-                
-                
-            
-            // `);
-
-    
-            // console.log(tree)
-            
-            //scene_context.math_parser.parse_math("<size=3>hello</><size=2>Wow</>")
+            let electric = new EuclideanElectric(scene_context);
+            electric.test_stage0();
 
 
             handle_scene_context(scene, scene_context);
