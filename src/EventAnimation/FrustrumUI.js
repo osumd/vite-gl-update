@@ -1,4 +1,6 @@
 import { Dequeue } from "../DataStructures/Dequeue";
+
+import { RenderTargetPlane } from "../../Videos/Scenes/RenderTargetPlane";
 import * as THREE from 'three';
 
 
@@ -34,6 +36,12 @@ export class FUIDoc
 
         // Store relative block placement transform within the parent.
         this.relative_transform = new THREE.Vector3(0,0,0);
+
+        // Store the root, of the tree that this object represents.
+        this.root = undefined;
+
+        
+        
     }
 
     // Update the plane details
@@ -50,6 +58,7 @@ export class FUIDoc
         this.plane_normal = camera_forward.clone().multiplyScalar(-1);
 
         this.camera_up = this.scene_context.camera.up.clone().applyQuaternion(camera_rotation).normalize();
+        
         this.camera_right = camera_forward.clone().cross(this.camera_up).normalize();
 
         let camera_fov = this.scene_context.camera.fov;
@@ -70,19 +79,42 @@ export class FUIDoc
         this.update_camera_far_plane();
         // Set the baseline vectors
         this.scene_context.math_parser.set_base_line_vectors(this.camera_right.clone().normalize(), this.camera_up.clone().normalize(), this.scene_context.camera.quaternion.clone().normalize());
+
         // Build the root of the ui string
         let root = this.scene_context.fui_parser.parse_ui(ui_string);
         
         // Render the fui tree from the root
-        console.log(root);
         this.render_fui_tree(root);
+
+        this.root = root;
         return root;
+    }
+
+    // Series of add functions which allow for adding nodes to the tree.
+    // Update to stack based functions which allow to add a different layers of the tree.
+    add_equation( equation_string )
+    {
+        if ( this.root == undefined )
+        {
+            return;
+        }
+        // Generate the singular node from the node parser.
+        let equation_node = this.scene_context.fui_parser.parse_single_node( equation_string );
+
+        // Set the parent of the equation node.
+        equation_node.parent = this.root;
+
+        // Add the equation of the child of the root.
+        this.root.children.push ( equation_node );
+
+        // Simply render the at the node.
+        this.render_fui_tree_dfs ( equation_node );
     }
 
     update_content_size(node)
     {
         // We first get information about the current node
-        let estimated_content_width = this.scene_context.math_parser.get_text_meta_data(node.textContent);
+        let estimated_content_width = this.scene_context.math_parser.get_text_meta_data( node.textContent );
 
         //Update the height of the node
         let estimated_content_height = this.estimate_height(node);
@@ -138,12 +170,6 @@ export class FUIDoc
             node.calculated_width = estimated_content_width;
         }
 
-
-      
-        
-
-        
-        
     }
 
     update_position(node)
@@ -154,7 +180,7 @@ export class FUIDoc
 
         if ( node.parent != undefined )
         {
-            parent_container = node.parent;
+            parent_container = node.parent.calculated_bounding;
 
         }else
         {
@@ -223,7 +249,7 @@ export class FUIDoc
         node.calculated_bounding[3] = node.calculated_position[1] + (node.calculated_height);
     }
     // Update the local offset of the parent base on its nodal display, introduces a postfix translation, which is undesireable.
-    update_offset(node)
+    update_offset(node, build_info)
     {
         
         // Then calculate the parents offset.
@@ -241,6 +267,8 @@ export class FUIDoc
 
         }else
         {
+            
+
             if ( node.display == "block" )
             {
                 node.parent.calculated_offset[0] = 0;
@@ -248,18 +276,15 @@ export class FUIDoc
                 
             }else if (node.display == "inline")
             {
-                //node.parent.calculated_offset[0] = 0;
-                node.parent.calculated_offset[0] += (node.calculated_width*node.fontSize);
-            }
+                node.parent.calculated_offset[0] += (node.calculated_width*node.fontSize*1.0);
 
-            // Update grandparents offsets and height.
-            // if ( node.parent.parent != undefined && node.display=="block")
-            // {
-            //     if ( node.calculated_height > node.parent.parent.calculated_offset[1] )
-            //     {
-            //         node.parent.parent.calculated_offset[1] = node.calculated_height;
-            //     }
-            // }
+
+                if ( node.parent.display != "inline" )
+                {
+                    node.parent.calculated_offset[1] += build_info[1];
+                }
+
+            }
 
         }
 
@@ -280,6 +305,7 @@ export class FUIDoc
         node.parent.calculated_offset[1] += node.padding[3]*(node.parent.calculated_bounding[3] - node.parent.calculated_bounding[1]);
 
     }
+    
     // Estimates size of the text content
     estimate_height(node)
     {
@@ -288,7 +314,7 @@ export class FUIDoc
             return 0;
         }
         
-        let estimated_height = (node.fontSize*0.3);
+        let estimated_height = (node.fontSize*0.8);
 
         if ( node.last_node != undefined && node.last_node.fontSize > node.fontSize ) 
         {
@@ -299,10 +325,11 @@ export class FUIDoc
         return estimated_height;
     }
 
-    render_text(node)
+    // Render functions 
+    render_math ( node )
     {
-
-        if ( node.textContent == "")
+        // if the desired content is empty return.
+        if ( node.textContent == "" )
         {
             return;
         } 
@@ -310,7 +337,7 @@ export class FUIDoc
         // Generate a internal baseline offset.
         let baseline_offset = 0;
 
-        // Adjust for if the last node had a larger size.
+        // Adjust for if the last node had a larger size in terms of fonts only.
         if ( this.last_node != undefined )
         {
             if ( this.last_node.fontSize > node.fontSize)
@@ -322,17 +349,102 @@ export class FUIDoc
             }
         }
 
+        // String components of the node.
+
         let pos = `position=[${node.calculated_position[0]},${ node.calculated_position[1] -baseline_offset },${node.calculated_position[2]}]`;
         let fontSize = `size=${node.fontSize}`;
-        
-        let text_ids = this.scene_context.math_parser.parse_math(`<${pos} ${fontSize}>${node.textContent}</>`);
+
+        let node_context = `<${pos} ${fontSize}>${node.textContent}</>`;
+        // If the node was previously rendered and has a current object associated with it, then use that.
+        if ( node.previously_rendered != undefined  )
+        {
+            
+            // If the content has not changed then just return
+            if ( node.previously_rendered == node_context )
+            {
+                return;
+            }
+
+            // Then dispose of the content or reuse depending on the type.
+            this.scene_context.math_parser.dispose ( node.text_ids );
+
+        }
+
+
+        // Then parse and render the math text.
+        let text_ids = this.scene_context.math_parser.parse_math( node_context );
 
         // Set this as the previous node
         this.last_node = node;
 
         // Populate node with previous render
-        //node.text_ids = text_ids;
-        //node.previously_rendered = `<${pos}>${node.textContent}</>`;
+        node.text_ids = text_ids;
+        node.previously_rendered = `<${pos}>${node.textContent}</>`;
+
+        if ( node.god_tag != "main")
+        {
+            // Divided into camera right units.
+            node.calculated_width = text_ids.total_length/this.camera_right.length();
+        }
+    }
+
+    render_text(node)
+    {
+        
+        
+        // if the desired content is empty return.
+        if ( node.textContent == "" )
+        {
+            return;
+        } 
+
+        console.log ( "text", node );
+
+        // Generate a internal baseline offset.
+        let baseline_offset = 0;
+
+        // Adjust for if the last node had a larger size in terms of fonts only.
+        if ( this.last_node != undefined )
+        {
+            if ( this.last_node.fontSize > node.fontSize)
+            {
+                baseline_offset = (this.last_node.fontSize - node.fontSize)*0.9;
+            } else if ( this.last_node.fontSize < node.fontSize )
+            {
+                baseline_offset = -(node.fontSize - this.last_node.fontSize)*0.9;
+            }
+        }
+
+        // String components of the node.
+
+        let pos = `position=[${node.calculated_position[0]},${ node.calculated_position[1] -baseline_offset },${node.calculated_position[2]}]`;
+        let fontSize = `size=${node.fontSize}`;
+
+        let node_context = `<${pos} ${fontSize}>${node.textContent}</>`;
+        // If the node was previously rendered and has a current object associated with it, then use that.
+        if ( node.previously_rendered != undefined  )
+        {
+            
+            // If the content has not changed then just return
+            if ( node.previously_rendered == node_context )
+            {
+                return;
+            }
+
+            // Then dispose of the content or reuse depending on the type.
+            this.scene_context.math_parser.dispose ( node.text_ids );
+
+        }
+
+        // Then parse and render the math text.
+        let text_ids = this.scene_context.math_parser.parse_math( node_context );
+
+        // Set this as the previous node
+        this.last_node = node;
+
+        // Populate node with previous render
+        node.text_ids = text_ids;
+        node.previously_rendered = `<${pos}>${node.textContent}</>`;
 
         if ( node.god_tag != "main")
         {
@@ -346,50 +458,66 @@ export class FUIDoc
 
     render_fui_tree_dfs(node)
     {
-        // Get the content size of the node
+        // Get the content size of the node | relies on their being an approximation of content size.
         this.update_content_size(node);
+
         // Check if this nodes direct predecessor is the god node, then if so it gets priority over the offset?
         if ( node.display == "block" && node.parent.god_tag == "main")
         {
             // Then prefix offset
-            this.update_offset(node);
+            //this.update_offset(node);
         }
 
-        // Update the dimenions of the node, going down the tree.
+        // Update the dimenions of the node, going down the tree, relies of a pre approximation of content size.
         this.update_dimension(node);
 
-        // Update the padding for prefix
-        this.update_padding_prefix(node);
+        // Get the updated dimension.
+        let build_info = [ node.calculated_width, node.calculated_height, node.parent.calculated_offset[1] ];
 
-        //Update the position of this node.
+        // Update the padding for prefix
+        //this.update_padding_prefix(node);
+
+        //Update the position of this node, doesn't really make any sense.
         this.update_position(node);
 
         
-
         for(let c = 0; c < node.children.length; c++)
         {
             // Depth first search all children.
-            this.render_fui_tree_dfs( node.children[c] );
+            let child_build_info = this.render_fui_tree_dfs( node.children[c] );
+
+            build_info[0] = Math.max ( child_build_info[0], build_info[0] );
+            build_info[1] = Math.max ( child_build_info[1], build_info[1] );
+
+            // Work around
+            build_info[2] = Math.max ( child_build_info[2], build_info[2] + node.calculated_height );
+
         }
 
         // If the parent has more than one children then its parent needs to inherit its calculated offset
-        if ( node.children.length > 0 && node.parent != undefined)
+        if (  node.parent != undefined  )
         {
+
+            //console.log ( node.calculated_offset );
             //node.parent.calculated_offset[1] += node.calculated_offset[1];
+
+    
         }
     
         // Update the padding for postfix
-        this.update_padding_postfix(node);
+        //this.update_padding_postfix(node);
 
         // Updates offset of the parent is postfix if the node is inline.
         if ( node.display == "inline" || node.display == "block" && node.parent.god_tag != "main")
         {
-            this.update_offset(node);
+            this.update_offset(node, build_info);
         }
         
         // Render the text content
         this.render_text(node);
 
+
+        return build_info;
         
 
     }
@@ -398,20 +526,27 @@ export class FUIDoc
     {
         // First initalize the main god root.
         this.update_content_size(root);
-        //Update the position of this node.
+
+        //Update the position of this node. | need to fix doesn't make any sense.
         this.update_position(root);
+
         // Update the dimenions of the node, going down the tree.
         this.update_dimension(root);
         
         // Export the tokens, and retrieve offset information.
         this.update_offset(root);
-        // Render the text content
+
+        // Render the text content | change this to rendered content.
         this.render_text(root);
 
         //Iterate through the children of the main god root.
         for( let c = 0; c < root.children.length; c++ )
         {
-            this.render_fui_tree_dfs(root.children[c]);
+            let build_info = this.render_fui_tree_dfs(root.children[c]);
+
+            console.log ( build_info ) ;
+
+            root.calculated_offset[1] += build_info[2];
         }
     }
 
@@ -428,7 +563,10 @@ class FUINode
         this.parent = undefined;
         
         // Store the text content
-        this.textContent = ""
+        this.textContent = "";
+
+        // Store whether the text content is math
+        this.isMath = false;
 
         // Store the id of the FUINode
         this.id = "";
@@ -471,12 +609,13 @@ class FUINode
         this.god_tag = "";
 
         // Designated to show what was rendered here before.
-        this.previously_rendered = "";
+        this.previously_rendered = undefined;
         this.text_ids = undefined;
 
-        // If attributes have been set
         
 
+        // A module slot in case the node inherits from some alternative module rendering object.
+        this.module = undefined;
     }
 
     empty()
@@ -522,7 +661,13 @@ export class FUIParser
             "display" : this.expand_display.bind(this),
             "bounding" : this.expand_bounding.bind(this),
             "id" : this.expand_id.bind(this),
+            "RenderTargetPlane" : this.expand_render_target_plane.bind(this),
         };
+
+
+        // To automatically strip left space and right space
+        // If no text has been encountered yet don't add space. [prefix space ]
+        // Count the number of consecutive spaces, and reset, then once the tag is closed, the remaining space can be shuffed out.
 
     }
 
@@ -541,6 +686,7 @@ export class FUIParser
         // Skip the inital opening tag
         this.token_index++;
 
+        // SKip white space.
         this.skip_space();
 
         // If this is a closing tag then move up the tree.
@@ -550,13 +696,14 @@ export class FUIParser
             {
                 this.current_assemble_node = this.current_assemble_node.parent;
             }
+
             this.token_index+=2;
            
             return;
         }
 
-        // If the current node is not empty
-        if ( 1 )
+        // Else create a new node and set the new node as a child of the current node, then switch to the child.
+        if ( 1  && this.current_assemble_node.god_tag != "singular" )
         {
             // Create a new node copy the attributes of the current.
             let new_node = new FUINode();
@@ -565,6 +712,7 @@ export class FUIParser
             this.current_assemble_node.children.push(new_node);
             new_node.parent = this.current_assemble_node;
             this.current_assemble_node = new_node;
+
         }
 
 
@@ -584,15 +732,32 @@ export class FUIParser
                 this.token_index++;
             }
             
+            // Skip space
+            this.skip_space();
+
+            // After skipping the space if there is no equals sign then the attribute has no parameters.
+            if ( this.ui_string[this.token_index] != '=' )
+            {
+                // At this point handle the attribute.
+                if ( this.attribute_indicators[attribute_name] != undefined )
+                {
+                    this.attribute_indicators[attribute_name]("no value");
+                }
+
+                // Then continue the loop
+                continue;
+            }
+        
             // Skip the equals
             this.token_index++;
 
-            // Skip space
+            // Skip space if any.
             this.skip_space();
 
             //Up until the end quotation mark, if there exists one otherwise up until the space.
             let termination_token = ' ';
             let quote_enclosed = this.ui_string[this.token_index] == '\'';
+
             if ( quote_enclosed == true )
             {
                 this.token_index++;
@@ -620,7 +785,11 @@ export class FUIParser
                 this.attribute_indicators[attribute_name](attribute_value);
             }
 
+            this.skip_space();
+
         }
+
+        
 
         // Assuming the tag is now closing we skip the last index
         this.token_index++;
@@ -647,6 +816,16 @@ export class FUIParser
         array.push( parseFloat(current_value));
 
         return array;
+
+    }
+
+    // For special attribute objects expand them and set the specified tag.
+    expand_render_target_plane( value )
+    {
+
+        console.log("Expansion failed due to equals sign!");
+
+        this.current_assemble_node.module = new RenderTargetPlane (  );
 
     }
 
@@ -684,6 +863,7 @@ export class FUIParser
     {
         this.current_assemble_node.id = value;
     }
+
     parse_ui(ui_string)
     {
         // Store the ui string
@@ -718,9 +898,27 @@ export class FUIParser
 
             }else
             {
-                // Absorb text into the textContnet
-                this.current_assemble_node.textContent += token;
-                this.token_index++;
+
+                // If the token is a space.
+                if ( token == ' ')
+                {
+
+                    if ( this.current_assemble_node.textContent.length > 0 )
+                    {
+                        this.current_assemble_node.textContent += token;
+                    }
+
+                    // advance token
+                    this.token_index++;
+                    
+                }else{
+                    
+                    // Absorb text into the textContnet
+                    this.current_assemble_node.textContent += token;
+                    this.token_index++;
+                }
+
+                
             }
 
             
@@ -733,5 +931,68 @@ export class FUIParser
         
     }
 
+    // Function meant to return a single node
+    parse_single_node( node_string )
+    {
+        this.token_index = 0;
+        this.ui_string = node_string;
+
+        this.current_assemble_node = new FUINode();
+        this.current_assemble_node.god_tag = "singular";
+
+        while ( this.token_index < this.ui_string.length )
+        {
+            // Skip the newlines and tab space.
+            if ( this.ui_string[this.token_index] == '\n' || this.ui_string[this.token_index] == '\t')
+            {
+                // Skip the white space after.
+                this.token_index++;
+                this.skip_space();
+                continue;
+            }
+
+            // Same two lane system one for plane text or math ui material
+            let token = this.ui_string[this.token_index]
+
+            // If the token at the current index meets a token respondance token 
+            if ( this.token_indicators[token] != undefined )
+            {
+                // Then run the cooresponding operation
+                this.token_indicators[token]();
+
+            }else
+            {
+                // Absorb text into the textContnet
+                this.current_assemble_node.textContent += token;
+                this.token_index++;
+            }
+
+            
+
+           
+        }
+
+        return this.current_assemble_node;
+
+    }
+
 };
 
+
+
+// let p = new FUIParser();
+
+// p.parse_ui(`
+
+//             <>
+//                 < display='inline' >
+//                     <> okay </>
+//                     <> goodbyte </>
+//                 </>
+
+//                 <> wow </>
+//             </>
+
+//             <> wow </>
+            
+//             `);

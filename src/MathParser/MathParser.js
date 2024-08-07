@@ -16,6 +16,7 @@ class MathParserNode
         this.color = [1,0,0];
         this.position = [0,0,0];
         this.quaternion = [0,0,0]; // For quaternion rotation to orient to the plane normal.
+
         this.size = 1.0;
         this.id = "";
         this.textContent = "";
@@ -36,6 +37,8 @@ class MathParserNode
         this.subscriptContent = "";
 
         
+
+
     }
 
     // Copies color,size,id and space
@@ -59,7 +62,7 @@ class MathDecoder
         // Store scene context
         this.scene_context = scene_context;
 
-        // Cursor which moves according to the  next contexual placement of text objects. 
+        // Cursor which moves according to the next contexual placement of text objects. 
         // Not in accordance with any basis vectors, and works on 2x2 identity. [REFACTOR to account for real axes]
         this.baseline_cursor = [0,0];
 
@@ -89,11 +92,13 @@ class MathDecoder
             },
         };
 
-        // Id associated with current export token [verify - look up.]
+        // Id associated with current export token [ verify - look up.]
         this.current_group_id = "";
 
-        // List of all text_ids associated with this current decoding cycle [needed implementation.]
+        // List of all text_ids associated with this current decoding cycle [ needed implementation.]
         this.ids_array = [];
+
+        
         
     }
 
@@ -117,9 +122,9 @@ class MathDecoder
     add_text_id(id)
     {
         let text_count;
-        if ( this.current_group_id != "")
+        if ( this.current_group_id != "" )
         {
-             text_count = this.id_map[this.current_group_id].text_count;
+            text_count = this.id_map[this.current_group_id].text_count;
              // Assign the text variation the text id
             this.id_map[this.current_group_id][`text${text_count}`] = id;
         }else
@@ -127,10 +132,6 @@ class MathDecoder
             text_count = this.id_map.text_count;
             this.id_map[`text${text_count}`] = id;
         }
-        
-        
-        
-        
     }
 
     // Could refactor to just count the subscripts/supercripts to make it easier to find but could then not find the sub/super based on text alone. [ preffered ]
@@ -142,8 +143,17 @@ class MathDecoder
 
     add_subscript_id(id)
     {
-        let text_count =this.id_map[this.current_group_id].text_count;
-        this.id_map[this.current_group_id][`test${text_count}sub`] = id;
+    
+        if ( this.current_group_id != "" )
+        {
+            let text_count = this.id_map[this.current_group_id].text_count;
+            this.id_map[this.current_group_id][`test${text_count}sub`] = id;
+        }else
+        {
+
+        }
+
+       
     }
 
     add_global_id(id)
@@ -238,7 +248,7 @@ class MathDecoder
             this.scene_context.reusable_text.text_objects[superscript_text].fontSize = export_token.size*0.4
             this.scene_context.reusable_text.text_objects[superscript_text].text = export_token.superscriptContent;
 
-            this.scene_context.reusable_text.text_objects[superscript_text].position.set(base_x+skipx - lastx0*0.2 - lasty0*0.1, base_y+skipy -lasty1*0.1- lastx1*0.2, base_z+skipz-lastx2*0.2- lasty2*0.1);
+            this.scene_context.reusable_text.text_objects[superscript_text].position.set(base_x+skipx*1.2 - lastx0*0.2 - lasty0*0.1, base_y+skipy -lasty1*0.1- lastx1*0.2, base_z+skipz-lastx2*0.2- lasty2*0.1);
 
             this.scene_context.reusable_text.text_objects[superscript_text].font = "../../public/fonts/latinmodern-math.otf";
 
@@ -247,8 +257,8 @@ class MathDecoder
             this.scene_context.scene.add(this.scene_context.reusable_text.text_objects[superscript_text]);
 
             // Add the super script to the id map
-            this.add_superscript_id(superscript_text);
-            this.add_global_id(superscript_text);
+            //this.add_superscript_id(superscript_text);
+            //this.add_global_id(superscript_text);
         }
 
         if ( export_token.subscriptContent != "" )
@@ -258,7 +268,7 @@ class MathDecoder
 
             this.scene_context.reusable_text.text_objects[subscript_text].fontSize = export_token.size*0.4
             this.scene_context.reusable_text.text_objects[subscript_text].text = export_token.subscriptContent;
-            this.scene_context.reusable_text.text_objects[subscript_text].position.set(base_x + skipx - lastx0*0.2 - lasty0*1.2, base_y + skipy - lastx1*0.2 - lasty1*1.2, base_z + skipz - lastx2*0.2 - lasty2*1.2);
+            this.scene_context.reusable_text.text_objects[subscript_text].position.set(base_x + skipx*1.2 - lastx0*0.2 - lasty0*1.2, base_y + skipy - lastx1*0.2 - lasty1*1.2, base_z + skipz - lastx2*0.2 - lasty2*1.2);
             this.scene_context.reusable_text.text_objects[subscript_text].font = "../../public/fonts/latinmodern-math.otf";
 
             this.scene_context.reusable_text.text_objects[subscript_text].sync();
@@ -428,7 +438,12 @@ class MathDecoder
             this.current_group_id = export_token.id;
 
             // Render either the text or the operator.
-            if ( export_token.textContent != "" )
+
+            if ( export_token.textContent == '\n' )
+            {
+                // Then simply increase the baseline cursor
+            }
+            else if ( export_token.textContent != "" )
             {
                 this.render_text(export_token);
 
@@ -474,6 +489,7 @@ export default class MathParser
             "|": this.expand_operator.bind(this),
             "^": this.expand_superscript.bind(this),
             "_": this.expand_subscript.bind(this),
+            '\n': this.expand_newline.bind(this),
         };
 
         // Extinguish token logic
@@ -501,39 +517,53 @@ export default class MathParser
         // Create a map
         this.length_map = {
             "a" : 0.5,
-            "b" : 0.55,
+            "b" : 0.5,
             "c" : 0.5,
-            "d" : 0.5,
+            "d" : 0.55,
             "e" : 0.5,
-            "f" : 0.4,
-            "g" : 0.55,
-            "h" : 0.4,
-            "i" : 0.33,
-            "j" : 0.44,
-            "k" : 0.65,
-            "l" : 0.33,
-            "m" : 0.7,
-            "n" : 0.65,
+            "f" : 0.5,
+            "g" : 0.5,
+            "h" : 0.5,
+            "i" : 0.5,
+            "j" : 0.5,
+            "k" : 0.5,
+            "l" : 0.3,
+            "m" : 0.6,
+            "n" : 0.5,
             "o" : 0.5,
-            "p" : 0.65,
-            "q" : 0.65,
-            "r" : 0.45,
-            "s" : 0.45,
-            "t" : 0.44,
-            "u" : 0.65,
-            "v" : 0.65,
-            "w" : 0.65, 
-            "x" : 0.7,
-            "y" : 0.7,
-            "z" : 0.6,
-            " " : 0.35,
-            "=" :0.77,
-            "+" : 0.77
+            "p" : 0.5,
+            "q" : 0.5,
+            "r" : 0.5,
+            "s" : 0.5,
+            "t" : 0.5,
+            "u" : 0.5,
+            "v" : 0.5,
+            "w" : 0.5, 
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0.5,
+            " " : 0.5,
+            "=" :0.5,
+            "+" : 0.5
 
         };
 
         // Create the math decoder
         this.math_decoder = new MathDecoder(scene_context);
+
+        // All flags, beginning characters, and end characters for id_registry
+        this.id_registry_flags = {
+            "=" : false
+        };
+
+        this.id_registry_begin_tokens = {
+            "=" : 0
+        };
+
+        this.id_registry_end_tokens = {
+            "\n" : 0
+        };
+        // End flags
 
     }
 
@@ -1186,6 +1216,7 @@ export default class MathParser
     expand_subscript(math_string, export_tokens)
     {
         this.token_index++;
+
         // Slopy empty check, still doesn't support recursiveness
         if ( this.current_export_token.operator_name != "" || this.current_export_token.textContent != "" )
         {
@@ -1284,6 +1315,26 @@ export default class MathParser
         return;
     }
 
+    // Expands a new line as an operator type
+    expand_newline ( math_string, export_tokens )
+    {
+        if ( this.current_export_token.operator_name != "" || this.current_export_token.textContent != "" )
+        {
+            //Then push the text object to the export tokens
+            export_tokens.push(this.current_export_token);
+
+            //  Create a newline token
+            let newline_token = new MathParserNode();
+
+            // Create a new token
+            let new_token = new MathParserNode();
+            new_token.copy_attributes(this.current_export_token);
+            this.current_export_token = new_token;
+        }
+
+    }
+
+    // Tries to estimate width of text.
     get_text_meta_data(math_string)
     {
 
@@ -1303,7 +1354,7 @@ export default class MathParser
 
             }else
             {
-                total_length += 0.44;
+                //total_length += 0.44;
             }
 
             psuedo_index++;
@@ -1335,6 +1386,17 @@ export default class MathParser
 
     }
 
+    // Function to skip to the next non space.
+    skip_space ( math_string )
+    {
+
+            while ( this.token_index < this.math_string_length && math_string[this.token_index] == ' ' )
+            {
+                this.token_index += 1;
+            }
+
+    }
+
     parse_math(math_string)
     {
         //console.log(math_string);
@@ -1353,24 +1415,41 @@ export default class MathParser
         {
             if ( this.token_map[math_string[this.token_index]] != undefined )
             {
-                this.token_map[math_string[this.token_index]](math_string, export_tokens);
-                
+                this.token_map[math_string[this.token_index]](math_string, export_tokens);            
             }else
             {
+                if ( math_string[this.token_index]  == '\n' )
+                {
+                    console.log("newline");
+                    this.token_index += 1;
+                    
+                    this.skip_space( math_string );
+
+                    this.current_export_token.textContent += '\n';
+                    continue;
+                }
+
+                //console.log ( math_string[this.token_index] );
+
+                
+
                 // Sum the total text content length
                 if ( this.length_map[math_string[this.token_index]] != undefined )
                 {
                     this.current_export_token.totalLength += this.length_map[math_string[this.token_index]];
+
                     // Update the last letter length
                     this.current_export_token.lastLetterLength = this.length_map[math_string[this.token_index]];
-                    
+    
                 }else
                 {
                     this.current_export_token.totalLength += 0.44;
                     this.current_export_token.lastLetterLength = 0.44;
                 }
                 
+                
                 this.current_export_token.textContent += math_string[this.token_index];
+                
                 
                 this.token_index++;
             }
@@ -1392,6 +1471,14 @@ export default class MathParser
         
 
         return this.math_decoder.decode(export_tokens);
+
+    }
+
+    // Dispose of a given text object with the ID map
+    dispose( id_map )
+    {
+        //console.log ( id_map );
+        this.scene_context.reusable_text.dispose_ids ( id_map.all_ids );
 
     }
 

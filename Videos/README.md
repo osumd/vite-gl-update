@@ -7,7 +7,7 @@ Scene (Scene Name):
                 Reccursion begins with the inital condition, and given a rule defined by its previous iterations so that the nth term of the recursive
                 function can be solved. :- s0
 
-                Lame's Theorem for example analizes the number of divisions it takes to get to the greatest common denominator of two integer values :- s1
+                Lame's Theorem for example analyzes the number of divisions it takes to get to the greatest common denominator of two integer values :- s1
 
                 the Euclidean algorithm uses recursion with a base case being that the remainder from the current iteration is zero, and that subsequently 
                 remainders are computed until this base case is reached. :- s2
@@ -21,12 +21,69 @@ Scene (Scene Name):
                 "Explains contrived insights from Lame's Theorem" :- s1
                 "Lays out the notation of a recurrence relation" :- s2
             Body:
+                Fibbonacci Function described, initially plotted, then the Fibbonaci Map sequences are plotted, the pixels are draw onto a plane
+                as they are plotted and then.
+
                 Fibbonaci surfaces arrise from each fibonnaci sequence, where the sequence identity is describe on scene, as well as current fibbonaci 
                 number [ uses memoization ], the surfaces are lighting defined by fibbonaci numbers, and is kind of like a fractal. :- s0
 
                 A few steps of euclidean algorithm are displayed in a column on the left side of the screen, then the recurrence relation for the euclidean algorithm shows up centered in the right side column of the screen. :- s2
-                
 
+        Usage:
+
+            // The document model
+            let s1doc = FuiDoc.parse ( " 
+                < display="grid" columns_template = "50% 50%" >
+
+                    < >
+                        a_n = a_n-1 + a_n-2
+                        a_0 = 0
+                        a_1 = 1
+                    </>
+
+                    <>
+                        < RenderTargetPlane >
+                            < Plot >
+                            </>
+                        </>
+                    </>
+                </>
+            
+            " ); 
+
+            event_system.animate ( s1doc.equation1 ); // fade in
+
+            // Set the plot settings
+            //s1doc.plot1.set..
+            //s1doc.plot1.set..
+
+            event_system.animate ( s1doc.plot1 );    // fade in
+
+            event_system.animate ( s1doc.equation2 );  
+            event_system.animate ( s1doc.equation3 );
+
+            // draw commands
+            s1doc.plot1.draw..
+
+            // Procedural model
+            let pl = planar_ui ( );
+
+            pl.begin_table ( column_vector, row_vector );
+            pl.begin_column ( );
+
+            pl.add_equation( );
+            pl.add_equation( );
+            pl.add_equation( );
+
+            pl.begin_column ( );
+            
+            pl.3dplot ( )
+
+            pl.end_table ( );
+
+            
+            
+                
     Subscene 2.
         Script:
             Goal Effect:
@@ -56,5 +113,21 @@ Notes - Descriptions
     animation.
         be able to create more fibbonaci surfaces
         edit the variables
+
+
+
+Add an option to add new nodes to a current instance of a FUI Doc
+Add a re-rendering option such that previously rendered objects are simply reused.
+
+
+ChunkMesh Usage:
+    // Uniform primitives per chunk and per protocol.
+    ChunkMesh ( { chunk_size, chunk_radius, chunk_finding_method, primitive_per_chunk, primitive_type })
+    ChunkMesh.add_uniforms ( )
+    ChunkMesh.add_protocol ( { max_primitives_per_protocol = 2, shader_subroutine } )
+
+ChunkCoordiantePlane Usage:
+
+    ChunkCoordinatePlane ( { plane_information, sub_divisions, origin, unit_length })
 
     

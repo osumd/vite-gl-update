@@ -1,24 +1,16 @@
 # Event System
-# Solid uv plane to sphere geometry.
-Divide a plane into n sections, use a ratio to place a vertex in each section.
-Transform the uv onto the surface of the sphere.
 
-Face connection from each vertex to adjacent subdivded faces.
+  ## Animation Modules :  
+     example 
+    
+      let eventSystem = new EventSystem ( );
+      let fibonacci map = new FibonacciMap( );
 
-Algorithm
-first divides the x space or radius plane by n
-and divides the y space or radius plane by n
-these section dimensions or spaces are denoted, and based
-on the number a point will be placed in the section for a simple
-algorithm just use a center for the first implementation.
-
-Then also denote the adjacency of the sections, so that edges in their respective section can be connected to form the faces.
 
 
 ## Features: Data visualization grid.
-  features of a data visualization grid, accurate scaling for different data circumstances
-  easy to see the different measurement markers.
-  Next is labels
+  usage:
+
 
 ## Features: Math Parser Utility
   uses case:
@@ -30,7 +22,35 @@ Then also denote the adjacency of the sections, so that edges in their respectiv
       let text_id = math_parser.parse( (-1.0, -1.0) "|frac{a}{b}{c}" );
       eventSystem.position_to(text_id.frac0, duration: 1, (1.0, -1.0));
 
+    micro
+    when a equals sign is encountered the equals sign flag is set, and when a space is encountered with the equals sign flag
+    set the entire node is registered as equationx
+    macro
+
+      "register character"
+      "register name"
+      "end character"
+
+    usage ( global equations )
+      let text_id = math_parser.parse ( " a = b " );
+      eventSystem.position_to ( text_id.equation0, )
+
 ## Features: Frustrum UI
+
+  TO-DO:
+    Redesign UI generation withougth content size guarentees
+    Add the id registry to math parser
+
+      problem 1 : newlines do not function well enough on their own with troika text
+        solution
+
+    Finish prefix and postfix strip on FUI Parser 
+      Finished prefix space, postfix space for later.
+    
+    [ Side quests ]
+      set up optional animation chain so that upon changing position, the coorseponding node is re-rendered in its respective tree.
+
+
   TO-DO:
     pull in frustrum details to build the original bounding container, and axis system.
     math parser should return length details for the total expression as well as the micro expressions.
@@ -45,11 +65,6 @@ Then also denote the adjacency of the sections, so that edges in their respectiv
 
     
     
-
-  
-
-  
-   
 ## Features: Creation and deletion system.
 an event must also consititute creation events rather than manipulations.
 and if no inital state or to state is given, then it is spawned where ever the cursor is in this case its 0,0,0
@@ -62,9 +77,21 @@ refactor events array into hashmap so that events can be taken out of the event 
 ## Feature: usage revamp
     improve usage syntax, allow for standard arrays that convert to three vectors
 
-## Event system refactor
-    make virtual class to hold object reference, and just call to get their position
-    change events array to map instead
+## Feature: RenderTargetPlane
+
+  ### Methods
+    .render ( planar parameters )
+    .estimate_height
+
+  usage:
+    let render_target_plane = new RenderTargetPlane( scene_context );
+    render_target_plane.attach_mesh ( mesh() );
+
+  test:
+
+    add chunk axis, and chunk grid to target plane then render the plane
+
+
 
 # REFACTORS
 Allow object to be defined before all switch states in get, and update less confusing.

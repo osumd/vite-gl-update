@@ -8,7 +8,6 @@ export default class FibbonaciMap
 
     constructor(scene_context)
     {
-            console.log(scene_context);
             // Store the scene context
             this.scene_context = scene_context;
 
@@ -20,6 +19,10 @@ export default class FibbonaciMap
             this.generate_sequences();
             //this.generate_geometry_texture();
             //this.texture_to_instance();
+
+            // Set a knob, which the number of revealed sequences
+            // Integer
+            
     }
 
     generate_geometry_texture()
@@ -106,6 +109,10 @@ export default class FibbonaciMap
             }
 
             void main() {
+
+                // If id > id_limit | animations discard
+                // Else if id == id_limit -1, and t > | animation t_limit discard.
+
 
                 // Primitive type.
                 int primitive_type = 4;
@@ -217,12 +224,14 @@ export default class FibbonaciMap
         // Set the resolution
         this.geometry_texture_resolution = new THREE.Vector3(600,600);
 
+        
+
         this.texture_generator = new THREE.ShaderMaterial({
             vertexShader: vertexShader, fragmentShader: fragmentShader,
             uniforms:{
                 resolution: {value: this.geometry_texture_resolution },
                 sequence_map: {value: this.sequence_texture },
-                sequence_resolutions: {value: this.sequence_resolutions },
+                sequence_resolutions: { value: this.sequence_resolutions },
                 sequence_arc_lengths: { value: this.sequence_arc_lengths },
                 number_of_sequences: {value: this.number_of_sequences },
                 primitive_id_map :  {value: this.primitive_id_map },
@@ -248,7 +257,7 @@ export default class FibbonaciMap
         this.scene_context.scene.add(displayPlane);
 
         // Register on animate to generate the texture
-        this.scene_context.onAnimate.add_event(this.render_geometry_texture.bind(this) );
+        this.scene_context.onAnimate.add_event( this.render_geometry_texture.bind(this) );
     }
 
 

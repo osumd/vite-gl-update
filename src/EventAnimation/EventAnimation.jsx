@@ -72,7 +72,7 @@ class EventSystem extends React.Component{
     // Adders | Add stuff to this this is a mess
     add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false, primitive=false}, ...args )
     {
-        
+                
         /* console.log("Object: " + object);
         console.log("attributes: " + args );
         console.log("start " + start);
