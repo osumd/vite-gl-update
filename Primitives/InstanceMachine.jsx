@@ -17,6 +17,7 @@ class InstanceMachine extends React.Component {
         
         //seting up geometries [Sphere]
         this.xy_sphere_geometry = XYSphere({radius:1.0, widthSegments:10, heightSegments:10});
+
         //set up cylinder geomtries [Cylinder]
         this.open_cylinder_geometry = OpenCylinder();
 
@@ -24,7 +25,7 @@ class InstanceMachine extends React.Component {
         this.element_sphere_geometry = ElementSphere();
         
         // the capacities for each geometry type and their instance 
-        this.instances_xy_spheres_capacity = 300;
+        this.instances_xy_spheres_capacity = 2;
         this.instancedXYSphere = new THREE.InstancedMesh(this.xy_sphere_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_xy_spheres_capacity);
         
         this.instances_open_cylinder_capacity = 10;
@@ -33,7 +34,6 @@ class InstanceMachine extends React.Component {
         this.instances_element_sphere_capacity = 10;
         this.instancedElementSphere = new THREE.InstancedMesh ( this.element_sphere_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00 }), this.instances_element_sphere_capacity );
 
-        
         //bitmap font location
 
         //sizes for the individual vectors
@@ -98,13 +98,15 @@ class InstanceMachine extends React.Component {
         nullify_element_spheres(this);
     }
 
-    add_xy_sphere(location, radius)
+    add_xy_sphere( location, radius )
     {
 
         //console.log("INSTANCE_MACHINE: Added xy sphere");
         if(this.instances_xy_spheres_size == this.instances_xy_spheres_capacity)
         {
 
+
+            console.log ( " hey " );
         
             this.instances_xy_spheres_capacity = this.instances_xy_spheres_capacity*2;
             var new_mesh = new THREE.InstancedMesh(this.xy_sphere_geometry, new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }), this.instances_xy_spheres_capacity);
@@ -123,7 +125,7 @@ class InstanceMachine extends React.Component {
 
                 for(let i = this.instances_xy_spheres_size; i < this.instances_xy_spheres_capacity; i++)
                 {
-                    new_mesh.setMatrixAt(i,new THREE.Matrix4(0));
+                    new_mesh.setMatrixAt(i, new THREE.Matrix4(0));
                 }
 
             }
@@ -145,8 +147,6 @@ class InstanceMachine extends React.Component {
         this.instances_xy_spheres_size++;
 
         return instance_index;
-
-
 
     }
 
@@ -195,6 +195,7 @@ class InstanceMachine extends React.Component {
         let quaternion = new THREE.Quaternion().setFromAxisAngle(axis_norm, -angle);
 
         let mc = new THREE.Matrix4().compose(start, quaternion, new THREE.Vector3(1, line_size, 1));
+        
         
         this.instancedOpenCylinder.setMatrixAt(this.instances_open_cylinder_size++, mc);
     }
@@ -261,6 +262,8 @@ class InstanceMachine extends React.Component {
 
     render_to_scene(scene)
     {
+        
+
         scene.add(this.instancedXYSphere);
         scene.add(this.instancedOpenCylinder);
         scene.add(this.instancedElementSphere);

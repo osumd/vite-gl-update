@@ -29,7 +29,7 @@ Scene (Scene Name):
 
                 A few steps of euclidean algorithm are displayed in a column on the left side of the screen, then the recurrence relation for the euclidean algorithm shows up centered in the right side column of the screen. :- s2
 
-        Usage:
+        Macro Usage:
 
             // The document model
             let s1doc = FuiDoc.parse ( " 
@@ -52,7 +52,7 @@ Scene (Scene Name):
             " ); 
 
             event_system.animate ( s1doc.equation1 ); // fade in
-
+            
             // Set the plot settings
             //s1doc.plot1.set..
             //s1doc.plot1.set..
@@ -80,6 +80,37 @@ Scene (Scene Name):
             pl.3dplot ( )
 
             pl.end_table ( );
+
+        Plot
+
+            Requirements:
+                Allows multiple coordinate system visualization methods [ use mvp one for now ]
+                Plots Points
+                Lines
+                Vectors
+                Single Variate Functions
+                Multivariate Functions
+
+
+            Plot ( CoordinateBasis, Origin )
+
+            Instanced spheres
+
+            Usage:
+
+                class point_id : InstancedMesh reference, and index, type tag
+
+                problem: if the object is disposed of the reference is still in the event system. | dispose events I guess
+
+                let point_id = Plot.fade_in_point ( );
+
+                
+                eventSystem.animate (  )
+            
+
+            
+
+
 
             
             

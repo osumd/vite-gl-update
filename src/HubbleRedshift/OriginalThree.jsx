@@ -31,14 +31,25 @@ import { ChunkAxisMesh } from '../../Videos/Scenes/ChunkAxisMesh.jsx';
 // Import the Chunk Coordinate Plane
 import { ChunkCoordinatePlane } from '../../Videos/Scenes/ChunkCoordinatePlane.jsx';
 
-
 import { RenderTargetPlane } from '../../Videos/Scenes/RenderTargetPlane.jsx';
+
+// Import the Plot
+import { Plot } from '../../Videos/Scenes/Plot.jsx';
+
+// Import the instanced mesh.
+import { InstancedMesh } from '../../Primitives/InstancedMesh.jsx';
+
+import { XYSphere } from '../../Primitives/PrimitiveSphere.jsx';
 
 import './HubbleRedshift.css'
 
 
 function create_scene_context(scene, renderer)
 {
+
+    // Set up the OnAnimate system
+    let onAnimate = new OnAnimate();
+
     //may to need to create reference to scene and return it | fix to enable adding more instance types to this machine in terms of a modular connection.
     let instanceMachine = new InstanceMachine();
 
@@ -46,12 +57,10 @@ function create_scene_context(scene, renderer)
     let reusable_text = new ReusableText();
 
     // Set up math parser
-    let math_parser = new MathParser({reusable_text, scene, renderer});
+    let math_parser = new MathParser( {reusable_text, scene, renderer} );
 
     // Set up the event animation system
-    let eventSystem = new EventSystem({instanceMachine, reusable_text, math_parser});
-    // Set up the OnAnimate system
-    let onAnimate = new OnAnimate();
+    let eventSystem = new EventSystem( {instanceMachine, reusable_text, math_parser} );
 
     // Setup the FUI Parser
     let fui_parser = new FUIParser();
@@ -90,18 +99,18 @@ function OriginalThree ()
             document.body.appendChild(renderer.domElement);
 
             const controls = new OrbitControls(camera, renderer.domElement);
+            //controls.target = new THREE.Vector3(0,0,0);
 
             const geometry = new THREE.BoxGeometry();
             const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
             const cube = new THREE.Mesh(geometry, material);
-            cube.position.set(0,0,0);
+
 
             const cube2 = new THREE.Mesh(geometry, material);
             cube2.position.set(20,0,0);
 
-            
-
+        
             //scene.add ( mesh );
             //scene.add(cube);
             //scene.add(cube2);
@@ -113,13 +122,18 @@ function OriginalThree ()
 
 
             // Import the chunk coordinate plane
-            let chunk_plane = new ChunkCoordinatePlane ( scene_context );
+            //let chunk_plane = new ChunkCoordinatePlane ( scene_context );
 
-            let render_target_plane = new RenderTargetPlane ( scene_context );
+            //scene.add ( chunk_plane.return_mesh( ));
 
-            render_target_plane.attach_mesh ( chunk_plane.return_mesh() );
-
+            // let render_target_plane = new RenderTargetPlane ( scene_context );
+            // let plot = new Plot ( scene_context );
+            // plot.assign_scene( render_target_plane.scene );
+            // let point_reference = plot.add_point ( new THREE.Vector3(1,0,0) );
+            // plot.add_coordinate_plane( scene );
             
+            //scene_context.eventSystem.add_event ( { object: point_reference, duration: 1 }, { attribute: "position", from: new THREE.Vector3(0,0,0), to:new THREE.Vector3(2,0,0)} );
+
             //  Generate a new Chunk Axis 
             //let chunk_axis = new ChunkAxisMesh( scene_context );
 
@@ -135,35 +149,46 @@ function OriginalThree ()
 
             //chunk_axis.render(scene);
             
-
             //scene_context.instanceMachine.add_xy_sphere ( new THREE.Vector3(0,0,0), 1.0 ) ;
 
             //scene_context.math_parser.parse_math("|frac{a}{b} = a+b");
 
+            
+            //let math_ids = scene_context.math_parser.parse_math ( `f_n = abc` );
 
-            let math_ids = scene_context.math_parser.parse_math ( `x_n=b
-            x_n=b` );
+            
 
-            console.log ( math_ids );
 
-            //let fui_doc = new FUIDoc(scene_context);
+
+            let fui_doc = new FUIDoc(scene_context);
 
 
             // Get the FUI parser
-            // let parsed_doc = scene_context.fui_parser.parse_ui ( `
-            //     < display = 'inline' > 
-            //         <> fix </>
-            //         <> fix </>
+
+            let doc = fui_doc.parse(`
+
+
+            < grid col=[40 %, 25%] row=[25%, 25%] >
+            
+                <> 
+                    <> f_n = f_{n-1} + f_{n-2} </>
+                    <> f_0 = 0 </>
+                    <> f_1 = 1 </>
+                </>
+
+                <>
+                    huh?
+                    is this thing working?
                 
-            //     </>
-            //     <> fix </>`);
+                </>
+                <>
+                    what
+                </>
+                < plot ></>
+            </>
+            `);
 
-            // let doc = fui_doc.parse(`
-            //     <> 
-            //                    hello goodbyte
-            //     </>`);
-
-            //console.log ( doc );
+            console.log ( doc );
 
             //fui_doc.add_equation ( "<>hey</>" )
 
@@ -182,6 +207,7 @@ function OriginalThree ()
 
                 // Renders the scene.
                 renderer.render( scene, camera );
+
                 
                 renderer.setClearColor( new THREE.Color(0x202020) );
 

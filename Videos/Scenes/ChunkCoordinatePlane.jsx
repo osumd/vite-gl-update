@@ -5,8 +5,14 @@ import * as THREE from 'three';
 
 class ChunkCoordinatePlane {
 
-    constructor( scene_context )
+    constructor( scene_context, origin=new THREE.Vector3(0,0,0) )
     {
+
+        
+
+        //  Set the origin  of the chunk coordinate plane
+        this.origin = origin;
+
 
         this.scene_context = scene_context;
 
@@ -595,11 +601,11 @@ class ChunkCoordinatePlane {
        // The amount of chunks to be added would be.
         let chunks_added = 1 + ( this.chunk_radius*this.chunk_radius*this.chunk_radius*4);
 
-        let camera_chunk_x = 0;
-        let camera_chunk_y = 0;
+        let camera_chunk_x = this.origin.x;
+        let camera_chunk_y = this.origin.y;
 
         // The floor with snap to the lowest Z value which is on the back side of the chunk.
-        let camera_chunk_z = 0 ;
+        let camera_chunk_z = this.origin.z ;
 
         let camera_chunk_lower = new THREE.Vector3( camera_chunk_x, camera_chunk_y, camera_chunk_z );
         let camera_chunk_upper = new THREE.Vector3( camera_chunk_x + this.chunk_size, camera_chunk_y + this.chunk_size, camera_chunk_z - this.chunk_size ); 

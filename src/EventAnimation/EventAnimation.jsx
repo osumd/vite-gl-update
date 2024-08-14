@@ -32,6 +32,7 @@ class EventSystem extends React.Component{
 
         //animateable attributes
         this.animateable_attributes = {
+            "opacity":this.update_object_opacity.bind(this),
             "position":this.update_object_position.bind(this),
             "translation":this.update_object_translation.bind(this),
             "scale":this.update_object_scale.bind(this), 
@@ -46,6 +47,7 @@ class EventSystem extends React.Component{
         
         //get specific attributes from object
         this.retrievable_attributes = {
+            "opacity": this.get_object_opacity.bind(this),
             "position": this.get_object_position.bind(this),
             "translation": this.get_object_translation.bind(this),
             "scale": this.get_object_scale.bind(this), 
@@ -95,12 +97,14 @@ class EventSystem extends React.Component{
         //if the object is undefined which is the only hard required arg return and die.
         if(object == undefined)
         {
+            console.log("EVENT_SYSTEM: Denied primitive type!");
             return;
         }
 
         // if end is auto and duration is auto ie there is no time topology remove and destroy
         if (end == "auto" && duration == "auto")
         {
+            console.log("EVENT_SYSTEM: Denied primitive type!");
             return;
         }
 
@@ -123,6 +127,8 @@ class EventSystem extends React.Component{
             end = start+duration;
         }
 
+
+        
         //update the timeline end
         //updates the timeline space
         
@@ -141,19 +147,21 @@ class EventSystem extends React.Component{
             
             if(arg.to == undefined)
             {
-            
+                
                 continue;
             }
             
             //
             if(arg.attribute == undefined)
             {
+                
                 continue;
             }
 
             //filter out args withought animateable attributes
             if(this.animateable_attributes[arg.attribute] == undefined )
             {
+                console.log("EVENT_SYSTEM: Denied primitive type!");
                 continue;
             }
 
@@ -201,7 +209,7 @@ class EventSystem extends React.Component{
                 this.events_time_end = end;
             }
 
-            //console.log("EVENT_SYSTEM: Event added!");
+            console.log("EVENT_SYSTEM: Event added!");
             //push the event to the array
             this.events.push({ head: {object,start,end, duration, isRef, isText, primitive}, attributes: arg_array });
 
@@ -359,11 +367,60 @@ class EventSystem extends React.Component{
 
     }
 
+    // Opacity mode.
+    get_object_opacity ( {head, attribute} )
+    {
+        if ( head.object.tag_type == "instanced_mesh")
+        {
+            
+            console.log("hello");
+            console.log ( head.object.materials );
+
+            return head.object.materials[0].opacity;
+
+        }
+
+    }
+
+    update_object_opacity ( {head, attribute, t } )
+    {
+        if ( head.object.tag_type == "instanced_mesh" )
+        {
+            let easing = attribute.easing;
+            let current_opacity = this.interpolation_methods[easing](attribute.from, attribute.to, t );
+
+            head.object.instanced_mesh.material.uniforms.opacities.value[ 0 ] = current_opacity;
+            head.object.instanced_mesh.material.uniforms.needsUpdate = true;
+        }
+
+    }
+
     //updating objects based on attributes
     get_object_position({head, attribute})
     {
         //console.log("UPDATE_OBJECT: this" + this.scene_context);
-        if(head.isRef == true)
+
+        if ( head.object.tag_type == "instanced_mesh")
+        {
+
+            console.log ( head.object );
+
+            // Uses the get world functionality by indexing by primitive type.
+            let position = new THREE.Vector3();
+            let quaternion = new THREE.Quaternion();
+            let scale = new THREE.Vector3();
+
+            let instanceMatrix = new THREE.Matrix4();
+
+
+
+            head.object.instanced_mesh.getMatrixAt(head.object.object_index, instanceMatrix);
+            instanceMatrix.decompose(position, quaternion, scale);
+
+            return position;
+
+        }
+        else if(head.isRef == true)
         {
             return head.object.current.position.clone();
         }else if (head.isText == true )
@@ -438,8 +495,34 @@ class EventSystem extends React.Component{
 
     update_object_position({head, attribute, t})
     {
+        if ( head.object.tag_type == "instanced_mesh")
+        {
+
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.to.z, t);
+
+            let instance_matrix = new THREE.Matrix4();
+
+            head.object.instanced_mesh.getMatrixAt(head.object.object_index, instance_matrix);
             
-        if(head.isRef == true)
+            let position = new THREE.Vector3(0.0, 0.0,0.0);
+            let quaternion = new THREE.Quaternion(0.0, 0.0,0.0, 0.0);
+            let scale = new THREE.Vector3(1.0, 1.0,1.0);
+            
+            instance_matrix.decompose(position, quaternion, scale);
+
+            position.set(x,y,z);
+            instance_matrix.compose(position, quaternion, scale);
+
+            head.object.instanced_mesh.setMatrixAt(head.object.object_index, instance_matrix);
+
+            head.object.instanced_mesh.instanceMatrix.needsUpdate = true;
+
+        }
+        else if(head.isRef == true)
         {  
             //set easing from attribute arg
             let easing = attribute.easing;
@@ -904,7 +987,6 @@ class EventSystem extends React.Component{
             let event_attributes = this.events[i].attributes;
 
            
-
             if ( this.timeline_head >= event_head.start && this.timeline_head <= event_head.end )
             {
                 //measure the distance past start as t
@@ -924,6 +1006,7 @@ class EventSystem extends React.Component{
                     //if this is the first time the event attributes was encountered then set the init
                     if(event_attributes[attribute_index].init == false && this.retrievable_attributes[attribute_title] != undefined)
                     {
+                        
                         event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
 
                         event_attributes[attribute_index].init = true;
