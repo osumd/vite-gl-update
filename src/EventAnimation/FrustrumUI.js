@@ -1,6 +1,8 @@
 import { Dequeue } from "../DataStructures/Dequeue";
 
+// For rendering objects onto planes
 import { RenderTargetPlane } from "../../Videos/Scenes/RenderTargetPlane";
+import { Plot }  from "../../Videos/Scenes/Plot";
 
 import * as THREE from 'three';
 
@@ -21,10 +23,7 @@ export class FUIDoc
         // Store the plane normal.
         this.plane_normal;
 
-        // Store a map to the nodes neccecary, needed.
-        this.document_map = {
-
-        };
+        
 
         // Store a last node processed.
         this.last_node = undefined;
@@ -41,11 +40,34 @@ export class FUIDoc
         // Store the root, of the tree that this object represents.
         this.root = undefined;
 
-        
-        // Store the element count for use in exporting the id_maps of the equations, will "element_name0..." by default if no id,  otherwise id.
+
+        // Store a map to the nodes neccecary, needed.
         this.id_map = {
-            el_count: 0,
+            text_count: 0,
+            frac_count: 0,
+            equals_count: 0,
+            plot_count: 0,
+            // Section for tracking equations
+            equation0 : {
+                equals_flag: "lhs",
+                lhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                rhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                all_ids: []
+                
+            },
+            equation_tail: 0,
+
+            all_ids: []
         };
+
 
         // Store a class collection map which handles the way different class types are rendered.
         this.class_node_handlers = {
@@ -99,9 +121,6 @@ export class FUIDoc
     {
 
         // Store the element count for use in exporting the id_maps of the equations, will "element_name0..." by default if no id,  otherwise id.
-        this.id_map = {
-            el_count: 0,
-        };
 
         // Elements should have like ids and stuff.
 
@@ -116,7 +135,19 @@ export class FUIDoc
         this.render_fui_tree(root);
 
         this.root = root;
-        return root;
+
+
+        let backup_id_map = this.id_map;
+        // Set the id_map to a non existent one.
+        this.id_map = undefined;
+
+        this.scene_context.math_parser.reset_id_map();
+
+        // Need to put the local into the global from the beginning then only a then set the global for the current class before rendering.
+
+        return backup_id_map;
+
+
     }
 
     // Series of add functions which allow for adding nodes to the tree.
@@ -384,19 +415,19 @@ export class FUIDoc
 
 
         // Then parse and render the math text.
-        let text_ids = this.scene_context.math_parser.parse_math( node_context );
+        let dimension_map = this.scene_context.math_parser.parse_math( node_context, this.id_map );
 
         // Set this as the previous node
         this.last_node = node;
 
         // Populate node with previous render
-        node.text_ids = text_ids;
+        //node.text_ids = text_ids;
         node.previously_rendered = `<${pos}>${node.textContent}</>`;
 
         if ( node.god_tag != "main")
         {
             // Divided into camera right units.
-            node.calculated_width = text_ids.total_length/this.camera_right.length();
+            node.calculated_width = dimension_map.total_length/this.camera_right.length();
         }
     }
 
@@ -448,39 +479,22 @@ export class FUIDoc
         }
 
         // Then parse and render the math text.
-        let text_ids = this.scene_context.math_parser.parse_math( node_context );
+        let dimension_map = this.scene_context.math_parser.parse_math( node_context, this.id_map );
 
         // Set this as the previous node
         this.last_node = node;
 
         // Populate node with previous render
-        node.text_ids = text_ids;
+        //node.text_ids = text_ids;
         node.previously_rendered = `<${pos}>${node.textContent}</>`;
 
         if ( node.god_tag != "main")
         {
             // Divided into camera right units.
-            node.calculated_width = text_ids.total_length/this.camera_right.length();
-            node.calculated_height = text_ids.total_height/this.camera_up.length();
+            node.calculated_width = dimension_map.total_length/this.camera_right.length();
+            node.calculated_height = dimension_map.total_height/this.camera_up.length();
         }
         
-        //this.update_dimension(node);
-        return text_ids;
-    }
-
-    update_id_map ( id_map, node )
-    {
-
-        let element_string = `el${this.id_map.el_count}`;
-
-        this.id_map[element_string] = id_map;
-
-        if ( node.id != "" )
-        {
-            this.id_map[node.id] = id_map;
-        }
-
-        this.id_map.el_count ++;
 
     }
 
@@ -560,9 +574,8 @@ export class FUIDoc
         }
 
         // Render the text content
-        let text_id_map = this.render_text(node);
-        // Update the internal id map with the updated node.
-        this.update_id_map ( text_id_map, node );
+        this.render_text(node);
+
         
         return build_info;
     }
@@ -614,8 +627,6 @@ export class FUIDoc
             let united_column_width = this.parse_united_value( node.grid_columns[current_column], this.camera_right.length() );
             let united_row_height = this.parse_united_value ( node.grid_rows[current_row], this.camera_up.length() );
 
-            
-
             //  Set the width and height of the child node.
             node.children[c].calculated_width = united_column_width;
             node.children[c].calculated_height = united_row_height;
@@ -623,9 +634,12 @@ export class FUIDoc
             
             if ( c !=0 && current_column == 0 )
             {
+                // Get the last united_row_height
+                let last_united_row_height = this.parse_united_value ( node.grid_rows [ Math.floor ( (c-1)  / column_count ) ], this.camera_up.length() );
+
                 // Reset the xoffset and updateyoffset by row size.
                 node.calculated_offset[0] = 0;
-                node.calculated_offset[1] += united_row_height;
+                node.calculated_offset[1] += last_united_row_height;
                 
             } 
 
@@ -666,15 +680,14 @@ export class FUIDoc
         return build_info;
     }
 
+    // Update the plot into the current decoding state of the parser
+
     // The plot system here is the big boy system.
     render_fui_plot ( node, preset )
     {
-
         // Calculate the width and height of the fui plot
         if ( preset == true )
         {
-
-            
 
             // Then the position, width and height have already been set for the encapsulating element.
             //Update the position of this node, doesn't really make any sense.
@@ -693,13 +706,24 @@ export class FUIDoc
 
         }
 
-        console.log ( "the node", node );
-
+        //console.log ( "the node", node );
 
         new THREE.Vector3(node.calculated_position[0],node.calculated_position[1],node.calculated_position[2]);
 
         // Implement a new render target plane module
-        let render_target_plane = new RenderTargetPlane( this.scene_context, node.calculated_width, node.calculated_height, new THREE.Vector3(node.calculated_position[0] + (node.calculated_width) , node.calculated_position[1] - (node.calculated_height),node.calculated_position[2]) );
+        let render_target_plane = new RenderTargetPlane( this.scene_context, node.calculated_width/2, node.calculated_height/2, new THREE.Vector3(node.calculated_position[0] + (node.calculated_width/2) , node.calculated_position[1] - (node.calculated_height/2),node.calculated_position[2]) );
+
+        // Create the plot associated with the document and assign it to the render_target_plane
+        let plot = new Plot ( this.scene_context ); // The plot should have the scene, and camera controller, but be passed controls to plane geometry itself.
+
+        plot.add_mesh_host ( render_target_plane.plane_mesh );
+
+        // Create the plot scene based on the dimensions of the plot
+        render_target_plane.assign_scene_camera ( plot.scene, plot.camera );
+
+        let plot_id_string = `plot${this.id_map.plot_count}`;
+        this.id_map[plot_id_string] = plot;
+        this.id_map.plot_count += 1;
 
         let build_info = [node.calculated_width, node.calculated_height, node.calculated_offset[1] ];
 
@@ -728,7 +752,7 @@ export class FUIDoc
         }
 
         // // Render the text content
-        let text_id_map = this.render_text(node);
+        this.render_text(node);
         // // Update the internal id map with the updated node.
         // this.update_id_map ( text_id_map, node );
         
@@ -801,9 +825,8 @@ export class FUIDoc
         }
         
         // Render the text content
-        let text_id_map = this.render_text(node);
-        // Update the internal id map with the updated node.
-        this.update_id_map( text_id_map, node );
+        this.render_text(node);
+
 
 
         return build_info;
@@ -813,6 +836,35 @@ export class FUIDoc
 
     render_fui_tree(root)
     {
+
+        // First things first reset the current id_map
+        // Store a map to the nodes neccecary, needed.
+        this.id_map = {
+            text_count: 0,
+            frac_count: 0,
+            equals_count: 0,
+            plot_count: 0,
+            // Section for tracking equations
+            equation0 : {
+                equals_flag: "lhs",
+                lhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                rhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                all_ids: []
+
+            },
+            equation_tail: 0,
+
+            all_ids: []
+        };
+
         // First initalize the main god root.
         this.update_content_size(root);
 
@@ -829,9 +881,7 @@ export class FUIDoc
         if ( root.textContent != "")
         {
             // Render the text content
-            let text_id_map = this.render_text(root);
-            // Update the internal id map with the updated node.
-            this.update_id_map ( text_id_map, root );
+            this.render_text(root);
         }   
         
 
@@ -841,15 +891,15 @@ export class FUIDoc
 
             // Get the class of the child.
             let class_of_child = root.children[c].class;
-            console.log( class_of_child );
+            //console.log( class_of_child );
 
             let build_info =  this.class_node_handlers[class_of_child]( root.children[c] );
             
             root.calculated_offset[1] += build_info[2];
-            console.log( root.calculated_offset[1], build_info );
+            //console.log( root.calculated_offset[1], build_info );
         }
 
-        //console.log ( this.id_map );
+        return this.id_map;
 
 
     }

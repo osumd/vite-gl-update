@@ -1,5 +1,14 @@
 # Event System
 
+## Usage 
+
+  scene.animate ( object, duration, from, to )
+  scene.animate_text ( object, duration, from, to )
+  this.context.animate.opacity ( object, duration, from, to )
+
+  ideal : usage, have to import the singleton each time, just set to future
+  animate.opacity 
+
 ## Requirements
 
   requirement0
@@ -30,8 +39,24 @@
 ## Features: Data visualization grid.
   usage:
 
+## Features: Latex Math Expression Converter
+
+  ## usage
+
+    let expression = converter ( MathParserNodes*array );
+
+    expression.input = ( vector );
+    expression."symbol" = x;
+    expression.symbol_table = { };
+
+
+
 
 ## Features: Math Parser Utility
+
+  fix this:
+    the final product must have local stored with global, so there should only be one id map, and locally is stored exclusively in the classes.
+    // Need to put the local into the global from the beginning then only a then set the global for the current class before rendering.  
 
 
   function newlines:
@@ -59,6 +84,8 @@
     usage ( global equations )
       let text_id = math_parser.parse ( " a = b " );
       eventSystem.position_to ( text_id.equation0, )
+
+
 
 ## Features: Frustrum UI
 

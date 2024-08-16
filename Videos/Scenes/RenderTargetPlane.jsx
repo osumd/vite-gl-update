@@ -20,19 +20,16 @@ class RenderTargetPlane
         this.width = width;
         this.height = height;
 
-        console.log( this.width, this.height, width, height );
+        //console.log( this.width, this.height, width, height );
 
         // generate scene and camera
-        this.camera = new THREE.PerspectiveCamera( 90, this.width/this.height, 0.1, 1000);
-        this.camera.position.z = 5;
-        this.camera.position.y = 2;
-        this.camera.rotation.x = -0.5;
+        this.camera = undefined
         
         //this.controls = new OrbitControls(this.camera, this.scene_context.renderer.domElement);
-        this.scene = new THREE.Scene();
+        this.scene = undefined;
 
         // generate the render target texture
-        this.geometry_texture_resolution = new THREE.Vector2(200*this.width,200*this.height);
+        this.geometry_texture_resolution = new THREE.Vector2(500*this.width,500*this.height);
         this.generate_render_target();
         // attach objects to the scene 
 
@@ -47,6 +44,14 @@ class RenderTargetPlane
         // If a set of controls where to be in mind for the render target plane.
         // Add update controls, then just check if the target plane is selected or mouse is in inside of target plane.
 
+    }
+
+
+    // Assign a scene to handle
+    assign_scene_camera ( scene,  camera )
+    {
+        this.scene = scene;
+        this.camera = camera;
     }
 
     // Generate the render target texture
@@ -123,14 +128,16 @@ class RenderTargetPlane
             uniform sampler2D scene_texture;
             uniform vec2 scene_texture_resolution;
 
+            uniform float opacity;
+
             void main ( )
             {
             
                 // Sample offsets for 4 sub-pixels (supersampling)
-                vec2 offset1 = vec2(5.0, 0.0) / scene_texture_resolution;
-                vec2 offset2 = vec2(-5.0, 0.0) / scene_texture_resolution;
-                vec2 offset3 = vec2(0.0, -5.0) / scene_texture_resolution;
-                vec2 offset4 = vec2(0.0, 5.0) / scene_texture_resolution;
+                vec2 offset1 = vec2(1.0, 0.0) / scene_texture_resolution;
+                vec2 offset2 = vec2(-1.0, 0.0) / scene_texture_resolution;
+                vec2 offset3 = vec2(0.0, -1.0) / scene_texture_resolution;
+                vec2 offset4 = vec2(0.0, 1.0) / scene_texture_resolution;
 
                 vec2 offset5 = vec2(-0.25, -0.25) / scene_texture_resolution;
                 vec2 offset6 = vec2(0.25, -0.25) / scene_texture_resolution;
@@ -148,8 +155,9 @@ class RenderTargetPlane
                 vec4 color7 = texture2D(scene_texture, vUv + offset7);
                 vec4 color8 = texture2D(scene_texture, vUv + offset8);
 
-                vec4 color = (color1 + color2 + color3 + color4 + color5 + color6 + color7 + color8) / 8.0;
+                vec4 color = (color1 + color2 + color3 + color4 ) / 4.0;
 
+                color.w = opacity;
                 gl_FragColor = texture( scene_texture, vUv);
                 gl_FragColor = color;
 
@@ -166,12 +174,18 @@ class RenderTargetPlane
                 uniforms: {
                     "scene_texture": { value: this.renderTarget.texture },
                     "scene_texture_resolution" : { value: this.geometry_texture_resolution },
-                }
+                    "opacity" : { value: 1.0 }
+                },
+                transparent: true,
             }
         );
 
+        
+
         this.plane_mesh = new THREE.Mesh ( plane_geometry, this.plane_material );
         this.plane_mesh.scale.set( this.width, this.height, 1.0);
+
+        
 
         
         this.plane_mesh.position.set(this.center.x, this.center.y, this.center.z);

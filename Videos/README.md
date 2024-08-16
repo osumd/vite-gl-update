@@ -51,19 +51,10 @@ Scene (Scene Name):
             
             " ); 
 
-            event_system.animate ( s1doc.equation1 ); // fade in
+            animate.opacity ( s1doc.lhs.equation1, s1doc.rhs.equation1 ); // fade in
+            animate.opacity ( s1doc.plot );
+            s1doc.add_point ( s1doc.equation0.input );
             
-            // Set the plot settings
-            //s1doc.plot1.set..
-            //s1doc.plot1.set..
-
-            event_system.animate ( s1doc.plot1 );    // fade in
-
-            event_system.animate ( s1doc.equation2 );  
-            event_system.animate ( s1doc.equation3 );
-
-            // draw commands
-            s1doc.plot1.draw..
 
             // Procedural model
             let pl = planar_ui ( );

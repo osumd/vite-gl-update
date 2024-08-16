@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import InstanceMachine from '../../Primitives/InstanceMachine';
 
 //Animation system
-import {EventAnimation, EventSystem} from '../EventAnimation/EventAnimation.jsx';
+import {EventSystem, EventAnimation} from '../EventAnimation/EventAnimation.jsx';
 
 // Import OnAnimate to jack into the main animation loop.
 import OnAnimate from '../EventAnimation/OnAnimate.jsx';
@@ -60,12 +60,12 @@ function create_scene_context(scene, renderer)
     let math_parser = new MathParser( {reusable_text, scene, renderer} );
 
     // Set up the event animation system
-    let eventSystem = new EventSystem( {instanceMachine, reusable_text, math_parser} );
+    let animate = new EventSystem( {instanceMachine, reusable_text, math_parser} );
 
     // Setup the FUI Parser
     let fui_parser = new FUIParser();
 
-    return { instanceMachine, eventSystem, reusable_text, onAnimate, math_parser, fui_parser, scene, renderer };
+    return { instanceMachine, animate, reusable_text, onAnimate, math_parser, fui_parser, scene, renderer };
 }
 
 function handle_scene_context( scene, scene_context )
@@ -116,94 +116,33 @@ function OriginalThree ()
             //scene.add(cube2);
 
             //scene context
-            let scene_context = create_scene_context(scene, renderer);
+            let context = create_scene_context(scene, renderer);
             // Set up ref to the camera
-            scene_context.camera = camera;
-
-
-            // Import the chunk coordinate plane
-            //let chunk_plane = new ChunkCoordinatePlane ( scene_context );
-
-            //scene.add ( chunk_plane.return_mesh( ));
-
-            // let render_target_plane = new RenderTargetPlane ( scene_context );
-            // let plot = new Plot ( scene_context );
-            // plot.assign_scene( render_target_plane.scene );
-            // let point_reference = plot.add_point ( new THREE.Vector3(1,0,0) );
-            // plot.add_coordinate_plane( scene );
-            
-            //scene_context.eventSystem.add_event ( { object: point_reference, duration: 1 }, { attribute: "position", from: new THREE.Vector3(0,0,0), to:new THREE.Vector3(2,0,0)} );
-
-            //  Generate a new Chunk Axis 
-            //let chunk_axis = new ChunkAxisMesh( scene_context );
-
-            //chunk_axis.set_axis ( new THREE.Vector3(1,0,0) );
-
-            //chunk_plane.render(scene);
-            //chunk_axis.render(scene);
-
-            //scene.add ( chunk_plane.render_texture_to_plane() );
-
-            //scene.add ( chunk_axis.render_texture_to_plane() );
-            
-
-            //chunk_axis.render(scene);
-            
-            //scene_context.instanceMachine.add_xy_sphere ( new THREE.Vector3(0,0,0), 1.0 ) ;
-
-            //scene_context.math_parser.parse_math("|frac{a}{b} = a+b");
-
-            
-            //let math_ids = scene_context.math_parser.parse_math ( `f_n = abc` );
+            context.camera = camera;
 
             
 
 
+            // let fui_doc = new FUIDoc(context);
 
-            let fui_doc = new FUIDoc(scene_context);
+            // let doc = fui_doc.parse(`
+            // < grid col=[50%, 50%] row=[40%, 50%] >
+            //     <> F_n = 1 </>
+            //     <> child1 </>
+            //     <> child2 </>
+            //     < plot >  </>
+            // </>
+            // `);
 
 
-            // Get the FUI parser
 
-            let doc = fui_doc.parse(`
-
-
-            < grid col=[40 %, 25%] row=[25%, 25%] >
-            
-                <> 
-                    <> f_n = f_{n-1} + f_{n-2} </>
-                    <> f_0 = 0 </>
-                    <> f_1 = 1 </>
-                </>
-
-                <>
-                    huh?
-                    is this thing working?
-                
-                </>
-                <>
-                    what
-                </>
-                < plot ></>
-            </>
-            `);
-
-            console.log ( doc );
-
-            //fui_doc.add_equation ( "<>hey</>" )
-
-            //console.log ( fui_doc );
-            //console.log( scene_context.fui_parser.parse_single_node("<> hey hey </>") );
-
-            
-
-            handle_scene_context(scene, scene_context);
+            handle_scene_context(scene, context);
             
             // Animation loop   
             const animate = () => {
 
                 // Update the on animate settings
-                scene_context.onAnimate.update();
+                context.onAnimate.update();
 
                 // Renders the scene.
                 renderer.render( scene, camera );
@@ -212,10 +151,10 @@ function OriginalThree ()
                 renderer.setClearColor( new THREE.Color(0x202020) );
 
                 //Fire animation subroutines
-                scene_context.eventSystem.update(clock.getDelta());
+                context.animate.update(clock.getDelta());
 
                 // Render instances from the instance machine.
-                scene_context.instanceMachine.render_to_scene( scene );
+                context.instanceMachine.render_to_scene( scene );
 
                 window.requestAnimationFrame(animate);
             };

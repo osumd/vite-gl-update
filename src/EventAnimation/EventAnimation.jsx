@@ -211,7 +211,7 @@ class EventSystem extends React.Component{
 
             console.log("EVENT_SYSTEM: Event added!");
             //push the event to the array
-            this.events.push({ head: {object,start,end, duration, isRef, isText, primitive}, attributes: arg_array });
+            this.events.push({ head: {object,start,end, duration, isRef, isText, primitive}, attributes: arg_array } );
 
             //console.log("ADD_EVENT: Current animation group! : ", this.current_animation_group);
             // If a current group is active then report its index in the events array, in the future this would be a name from a hash map for easier removal.
@@ -231,6 +231,8 @@ class EventSystem extends React.Component{
             
 
         }
+
+        return this.events[ this.events.length-1 ];
         
         
     
@@ -370,14 +372,24 @@ class EventSystem extends React.Component{
     // Opacity mode.
     get_object_opacity ( {head, attribute} )
     {
+
+        
+
         if ( head.object.tag_type == "instanced_mesh")
         {
             
-            console.log("hello");
-            console.log ( head.object.materials );
+            //console.log("hello");
+            //console.log ( head.object.materials );
 
             return head.object.materials[0].opacity;
 
+        }else if ( head.isText == true )
+        {
+            
+            let object = this.scene_context.reusable_text.text_objects[head.object];
+            return object.material.opacity;
+            
+            
         }
 
     }
@@ -391,6 +403,37 @@ class EventSystem extends React.Component{
 
             head.object.instanced_mesh.material.uniforms.opacities.value[ 0 ] = current_opacity;
             head.object.instanced_mesh.material.uniforms.needsUpdate = true;
+        }
+        else if ( head.isText == true )
+        {
+
+            
+            let easing = attribute.easing;
+            let current_opacity = this.interpolation_methods[easing](attribute.from, attribute.to, t );
+
+            if ( this.scene_context.reusable_text.text_objects[ head.object ] == undefined )
+            {
+                console.log( " undefined, undefined  ", head.object);
+            }
+
+            this.scene_context.reusable_text.text_objects[ head.object ].material.opacity =  current_opacity ;
+            this.scene_context.reusable_text.text_objects[ head.object ].sync();
+
+        }else
+        {
+
+            
+            let easing = attribute.easing;
+            let current_opacity = this.interpolation_methods[easing](attribute.from, attribute.to, t );
+
+            head.object.material.uniforms.opacity.value = current_opacity;
+            
+            head.object.material.needsUpdate = true;
+            
+            //console.log( head.object.material.uniforms )
+            
+
+
         }
 
     }
@@ -1073,6 +1116,117 @@ class EventSystem extends React.Component{
         </p>
         );
     }
+
+
+    // Pre update the event attributes
+    init_event_attributes( event )
+    {
+        let event_head = event.head;
+        let event_attributes = event.attributes;
+
+        for(let attribute_index = 0; attribute_index < event_attributes.length; attribute_index++)
+        {
+            
+            //attribute_title
+            let attribute_title = event_attributes[attribute_index].attribute;
+
+            //console.log(event_attributes[attribute_index].init)
+
+            //if this is the first time the event attributes was encountered then set the init
+            if(event_attributes[attribute_index].init == false && this.retrievable_attributes[attribute_title] != undefined)
+            {
+                
+                event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
+
+                event_attributes[attribute_index].init = true;
+            }else if ( event_attributes[attribute_index].init == true && this.retrievable_attributes[attribute_title] != undefined )
+            {
+
+                
+                event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
+                event_attributes[attribute_index].init = true;
+            }
+
+            
+
+    
+        }  
+    }
+
+    // Updates the opacity of an object
+    opacity ( object, duration, from, to, option)
+    {
+        if ( option == "isText" )
+        {
+            console.log ( object );
+            //  If option istext, primitive
+            this.add_event ( {object: object, duration: duration, isText: true }, { attribute: "opacity", from: from, to: to} );
+            return;
+        }
+
+        if ( object.all_ids != undefined )
+        {
+            
+            
+            let added_event = undefined;
+
+            for ( let i = 0; i < object.all_ids.length; i ++ )
+            {
+                if ( i == 0 )
+                {
+                    added_event = this.add_event ( {object: object.all_ids[i], duration: duration, isText: true }, { attribute: "opacity", from: from, to: to} );
+
+
+                }else
+                {
+                    //  If option istext, primitive
+                    added_event = this.add_event ( {object: object.all_ids[i], start: "last", duration: duration, isText: true }, { attribute: "opacity", from: from, to: to} );
+                }
+
+                this.init_event_attributes( added_event );
+
+                console.log( "event" );
+
+
+                
+            }
+
+
+
+            return;
+        }
+
+        
+
+        
+        //  If option istext, primitive
+        let added_event = this.add_event ( {object: object, duration: duration }, { attribute: "opacity", from: from, to: to} );
+
+        console.log( "event" );
+        this.init_event_attributes( added_event );
+
+
+
+    }
+
+    position ( object, duration, from , to )
+    {
+        if ( object.all_ids != undefined )
+        {
+            
+
+            for ( let i = 0; i < object.all_ids.length; i ++ )
+            {
+
+                //  If option istext, primitive
+                this.add_event ( {object: object.all_ids[i], start: "last", duration: duration, isText: true }, { attribute: "position", from: from, to: to} );
+
+
+            }
+
+        }
+    }
+
 };
 
 function EventAnimation(scene_context)
@@ -1119,4 +1273,4 @@ function EventAnimation(scene_context)
 
 
 
-export {EventAnimation, EventSystem};
+export {EventSystem, EventAnimation};

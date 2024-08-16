@@ -45,25 +45,20 @@ class Plot
         this.scene_context = scene_context;
 
         // Default scene
-        this.scene = this.scene_context.scene;
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(90, 1.0, 0.1, 1000);
+        this.camera.position.z = 5;
+        this.camera.position.y = 2;
 
         // Default parameters,  
         this.sphere_mesh = new InstancedMesh ( scene_context, new XYSphere({radius:1.0, widthSegments:10, heightSegments:10}) );
 
-    }
+        // Assign the scene of the sphere mesh.
+        this.sphere_mesh.assign_scene ( this.scene );
 
-    // Assign a custom scene 
-    assign_scene ( scene )
-    {
-
-        // For all InstancedMesh objects select assign scene to them
-        this.sphere_mesh.assign_scene ( scene );
-
-        // Set the scene
-        this.scene = scene;
+        this.host = undefined;
 
     }
-
 
     // Converts position to the the coordinate system
     convert_position_to_coordinate ( position )
@@ -119,6 +114,11 @@ class Plot
 
     }
 
+    // Register the material of the object hosting the plot
+    add_mesh_host ( host )
+    {
+        this.host = host;
+    }
 
 
 
