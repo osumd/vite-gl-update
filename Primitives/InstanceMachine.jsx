@@ -105,7 +105,6 @@ class InstanceMachine extends React.Component {
         if(this.instances_xy_spheres_size == this.instances_xy_spheres_capacity)
         {
 
-
             console.log ( " hey " );
         
             this.instances_xy_spheres_capacity = this.instances_xy_spheres_capacity*2;

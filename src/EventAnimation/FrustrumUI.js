@@ -47,8 +47,9 @@ export class FUIDoc
             frac_count: 0,
             equals_count: 0,
             plot_count: 0,
+            tex_count:0,
             // Section for tracking equations
-            equation0 : {
+            eq0 : {
                 equals_flag: "lhs",
                 lhs: {
                     text_count: 0,
@@ -74,6 +75,7 @@ export class FUIDoc
             "el" : this.render_fui_tree_dfs.bind(this),
             "grid" : this.render_fui_grid_dfs.bind(this),
             "plot" : this.render_fui_plot.bind(this),
+            "texture" : this.render_fui_texture.bind(this),
         };
 
     }
@@ -123,25 +125,87 @@ export class FUIDoc
         // Store the element count for use in exporting the id_maps of the equations, will "element_name0..." by default if no id,  otherwise id.
 
         // Elements should have like ids and stuff.
-
         this.update_camera_far_plane();
         // Set the baseline vectors
         this.scene_context.math_parser.set_base_line_vectors(this.camera_right.clone().normalize(), this.camera_up.clone().normalize(), this.scene_context.camera.quaternion.clone().normalize());
 
+
+        // Set the id_map to a non existent one.
+        this.id_map = {
+            text_count: 0,
+            frac_count: 0,
+            equals_count: 0,
+            subscript_count: 0,
+            plot_count: 0,
+            tex_count: 0,
+            el_count: 0,
+            grid_count: 0,
+            root : undefined,
+            // Section for tracking equations
+            eq0 : {
+                equals_flag: "lhs",
+                lhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    subscript_count: 0,
+                    all_ids: []
+                },
+                rhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    subscript_count: 0,
+                    all_ids: []
+                },
+                all_ids: []
+
+            },
+            equation_tail: 0,
+            all_ids: []
+        };
+
         // Build the root of the ui string
-        let root = this.scene_context.fui_parser.parse_ui(ui_string);
+        let root = this.scene_context.fui_parser.parse_ui(ui_string, [this.id_map]);
         
+        // Set the root up in the id_map
+        this.id_map.root = root;
+
         // Render the fui tree from the root
         this.render_fui_tree(root);
 
         this.root = root;
 
-
         let backup_id_map = this.id_map;
-        // Set the id_map to a non existent one.
-        this.id_map = undefined;
 
-        this.scene_context.math_parser.reset_id_map();
+        // Set the id_map to a non existent one.
+        this.id_map = {
+            text_count: 0,
+            frac_count: 0,
+            equals_count: 0,
+            plot_count: 0,
+            tex_count: 0,
+            el_count: 0,
+            // Section for tracking equations
+            eq0 : {
+                equals_flag: "lhs",
+                lhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                rhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                all_ids: []
+
+            },
+            equation_tail: 0,
+
+            all_ids: []
+        };
+
+        
 
         // Need to put the local into the global from the beginning then only a then set the global for the current class before rendering.
 
@@ -434,14 +498,12 @@ export class FUIDoc
     render_text(node)
     {
         
-        
         // if the desired content is empty return.
         if ( node.textContent == "" )
         {
             return;
         } 
 
-        
         // Generate a internal baseline offset.
         let baseline_offset = 0;
 
@@ -458,11 +520,11 @@ export class FUIDoc
         }
 
         // String components of the node.
-
         let pos = `position=[${node.calculated_position[0]},${ node.calculated_position[1] -baseline_offset },${node.calculated_position[2]}]`;
         let fontSize = `size=${node.fontSize}`;
 
         let node_context = `<${pos} ${fontSize}>${node.textContent}</>`;
+
         // If the node was previously rendered and has a current object associated with it, then use that.
         if ( node.previously_rendered != undefined  )
         {
@@ -470,7 +532,7 @@ export class FUIDoc
             // If the content has not changed then just return
             if ( node.previously_rendered == node_context )
             {
-                return;
+                //return;
             }
 
             // Then dispose of the content or reuse depending on the type.
@@ -479,7 +541,11 @@ export class FUIDoc
         }
 
         // Then parse and render the math text.
-        let dimension_map = this.scene_context.math_parser.parse_math( node_context, this.id_map );
+        let parse_context = this.scene_context.math_parser.parse_math( node_context, this.id_map );
+        let dimension_map = parse_context[0];
+
+        // Store the parsed text ids
+        node.text_ids = parse_context[1];
 
         // Set this as the previous node
         this.last_node = node;
@@ -501,6 +567,12 @@ export class FUIDoc
     // Used to parse united values
     parse_united_value  ( value, reference )
     {
+        
+        if ( value == undefined )
+        {
+            return 1 * reference;
+        }
+
         let value_string = "";
         let unit_string = "";
 
@@ -538,13 +610,11 @@ export class FUIDoc
     // Used for rendering a plane grid_node
     render_fui_grid_child ( node )
     {
-
+        this.clear_offsets(node);
         //Update the position of this node, doesn't really make any sense.
         this.update_position(node);
-
         // Update the dimenions of the node, going down the tree, relies of a pre approximation of content size.
         this.update_dimension(node);
-
 
         // Get the updated dimension.
         let build_info = [ node.calculated_width, node.calculated_height, node.parent.calculated_offset[1] ];
@@ -556,7 +626,6 @@ export class FUIDoc
             // Get the class of the child.
             let class_of_child = node.children[c].class;
             
-
             // Depth first search all children.
             let child_build_info = this.class_node_handlers[class_of_child]( node.children[c] );
 
@@ -581,8 +650,15 @@ export class FUIDoc
     }
 
     // Used for rendering standard grid
-    render_fui_grid_dfs ( node )
+    render_fui_grid_dfs ( node, preset = true )
     {
+
+        this.clear_offsets( node );
+
+        if ( preset == false )
+        {
+            //console.log(" preset: " ,  node.calculated_offset[0], node.calculated_offset[1]);
+        }
 
         // Copy the parent position.
         let parent_position = new THREE.Vector3( node.parent.calculated_position[0], node.parent.calculated_position[1], node.parent.calculated_position[2] );
@@ -609,6 +685,9 @@ export class FUIDoc
 
         // Get the column and row count.
         let column_count = node.grid_columns.length;
+
+        console.log("column:count ", column_count );
+
         let row_count = node.grid_rows.length;
 
         let build_info = [ node.calculated_width, node.calculated_height, node.parent.calculated_offset[1] ];
@@ -620,8 +699,8 @@ export class FUIDoc
             let current_column = c % column_count;
             let current_row = Math.floor ( c / column_count );
 
-            //console.log( "col", current_column );
-            //console.log( "row", current_row );
+            console.log( "col", current_column );
+            console.log( "row", current_row );
 
             // Find the current column width
             let united_column_width = this.parse_united_value( node.grid_columns[current_column], this.camera_right.length() );
@@ -632,7 +711,7 @@ export class FUIDoc
             node.children[c].calculated_height = united_row_height;
 
             
-            if ( c !=0 && current_column == 0 )
+            if ( c != 0 && current_column == 0 )
             {
                 // Get the last united_row_height
                 let last_united_row_height = this.parse_united_value ( node.grid_rows [ Math.floor ( (c-1)  / column_count ) ], this.camera_up.length() );
@@ -651,7 +730,10 @@ export class FUIDoc
             {
                 //console.log ( "nodal width,height", united_column_width, united_row_height);
                 //console.log ( "nodal cal width, cal height", node.children[c].calculated_width, node.children[c].calculated_height );
-
+                if ( preset == false )
+                {
+                    //console.log(" node: " , c,  node.children[c],  node.calculated_offset[0], node.calculated_offset[1]);
+                }
                 child_build_info = [0,0,0]
                 child_build_info = this.class_node_handlers[ node.children[c].class ]( node.children[c], true );
 
@@ -685,10 +767,10 @@ export class FUIDoc
     // The plot system here is the big boy system.
     render_fui_plot ( node, preset )
     {
+        this.clear_offsets( node );
         // Calculate the width and height of the fui plot
         if ( preset == true )
         {
-
             // Then the position, width and height have already been set for the encapsulating element.
             //Update the position of this node, doesn't really make any sense.
             this.update_position(node);
@@ -706,20 +788,51 @@ export class FUIDoc
 
         }
 
-        //console.log ( "the node", node );
 
-        new THREE.Vector3(node.calculated_position[0],node.calculated_position[1],node.calculated_position[2]);
+        console.log ( new THREE.Vector3(node.calculated_position[0],node.calculated_position[1],node.calculated_position[2]) );
 
-        // Implement a new render target plane module
-        let render_target_plane = new RenderTargetPlane( this.scene_context, node.calculated_width/2, node.calculated_height/2, new THREE.Vector3(node.calculated_position[0] + (node.calculated_width/2) , node.calculated_position[1] - (node.calculated_height/2),node.calculated_position[2]) );
+        let plot = undefined;
+        let render_target_plane = undefined;
 
-        // Create the plot associated with the document and assign it to the render_target_plane
-        let plot = new Plot ( this.scene_context ); // The plot should have the scene, and camera controller, but be passed controls to plane geometry itself.
+        if ( node.module == undefined )
+        {
+             // Implement a new render target plane module
+            render_target_plane = new RenderTargetPlane( this.scene_context, node.calculated_width/2, node.calculated_height/2, new THREE.Vector3(node.calculated_position[0] + (node.calculated_width/2) , node.calculated_position[1] - (node.calculated_height/2),node.calculated_position[2]) );
+            
+            // Create the plot associated with the document and assign it to the render_target_plane
+            plot = new Plot ( this.scene_context ); // The plot should have the scene, and camera controller, but be passed controls to plane geometry itself.
+            plot.add_mesh_host ( render_target_plane.plane_mesh );
+            //node.previously_rendered = render_target_plane;
 
-        plot.add_mesh_host ( render_target_plane.plane_mesh );
+            // Create the plot scene based on the dimensions of the plot
+            render_target_plane.assign_scene_camera ( plot.scene, plot.camera );
+            node.module = plot;
+            node.module0 = render_target_plane;
 
-        // Create the plot scene based on the dimensions of the plot
-        render_target_plane.assign_scene_camera ( plot.scene, plot.camera );
+        }else {
+            
+
+            
+
+            plot = node.module;
+            render_target_plane = node.module0;
+
+            render_target_plane.set_position_scale ( new THREE.Vector3(node.calculated_position[0] + (node.calculated_width/2) , node.calculated_position[1] - (node.calculated_height/2),node.calculated_position[2]), node.calculated_width/2, node.calculated_height/2);
+
+            //render_target_plane.set_position_scale ( new THREE.Vector3(0, 0, 0), node.calculated_width/2, node.calculated_height/2);
+
+        }
+
+       
+        
+
+        // Then if the node has an id associate the id with the plot
+        if ( node.id != "" )
+        {
+            this.id_map[node.id] = plot;
+        }
+
+        
 
         let plot_id_string = `plot${this.id_map.plot_count}`;
         this.id_map[plot_id_string] = plot;
@@ -761,9 +874,61 @@ export class FUIDoc
 
     }
 
+    render_fui_texture( node, preset )
+    {
+
+        if ( preset == true )
+        {
+
+            // Then the position, width and height have already been set for the encapsulating element.
+            //Update the position of this node, doesn't really make any sense.
+            this.update_position(node);
+
+            // Update the dimenions of the node, going down the tree, relies of a pre approximation of content size.
+            this.update_dimension(node);
+
+            
+
+        }else
+        {
+
+
+            
+
+        }
+
+        let render_target_plane = undefined;
+
+        if ( node.module == undefined )
+        {
+            render_target_plane = new RenderTargetPlane( this.scene_context, node.calculated_width/2, node.calculated_height/2, new THREE.Vector3(node.calculated_position[0] + (node.calculated_width/2) , node.calculated_position[1] - (node.calculated_height/2),node.calculated_position[2]) );
+            
+            node.module = render_target_plane;
+        } else 
+        {
+
+            render_target_plane = node.module;
+
+            render_target_plane.set_position_scale( new THREE.Vector3(node.calculated_position[0] + (node.calculated_width/2) , node.calculated_position[1] - (node.calculated_height/2),node.calculated_position[2]), node.calculated_width/2, node.calculated_height/2);
+
+        } 
+
+        
+        let tex_string = `tex${this.id_map.tex_count}`;
+        this.id_map[tex_string] = render_target_plane;
+        this.id_map.tex_count += 1;
+
+        if ( node.id != "" )
+        {
+            //this.id_map[node.id] = render_target_plane;
+        }
+
+    }
 
     render_fui_tree_dfs(node)
     {
+        this.clear_offsets ( node );
+
         // Get the content size of the node | relies on their being an approximation of content size.
         this.update_content_size(node);
 
@@ -839,31 +1004,6 @@ export class FUIDoc
 
         // First things first reset the current id_map
         // Store a map to the nodes neccecary, needed.
-        this.id_map = {
-            text_count: 0,
-            frac_count: 0,
-            equals_count: 0,
-            plot_count: 0,
-            // Section for tracking equations
-            equation0 : {
-                equals_flag: "lhs",
-                lhs: {
-                    text_count: 0,
-                    frac_count: 0,
-                    all_ids: []
-                },
-                rhs: {
-                    text_count: 0,
-                    frac_count: 0,
-                    all_ids: []
-                },
-                all_ids: []
-
-            },
-            equation_tail: 0,
-
-            all_ids: []
-        };
 
         // First initalize the main god root.
         this.update_content_size(root);
@@ -904,6 +1044,251 @@ export class FUIDoc
 
     }
 
+    
+
+    clear_offsets ( node )
+    {
+        node.calculated_offset[0] = 0;
+        node.calculated_offset[1] = 0;
+        
+    }
+
+    
+    rerender_fui_tree ( root )
+    {
+
+        // let node = root;
+        // let stack = [];
+        // while ( node.children.length > 0  )
+        // {
+
+        //     console.log( node );
+
+        //     for( let i = 0; i < node.children.length; i++ )
+        //     {
+
+        //         stack.push ( node.children[i] );
+
+        //     }
+        //     node = stack.pop();
+
+        // }
+        
+
+        this.clear_offsets ( root );
+
+        // First initalize the main god root.
+        this.update_content_size(root);
+
+        //Update the position of this node. | need to fix doesn't make any sense.
+        this.update_position(root);
+
+        // Update the dimenions of the node, going down the tree.
+        this.update_dimension(root);
+        
+        // Export the tokens, and retrieve offset information.
+        this.update_offset(root);
+
+
+        if ( root.textContent != "")
+        {
+            // Render the text content
+            this.render_text(root);
+        }   
+        
+
+        //Iterate through the children of the main god root.
+        for( let c = 0; c < root.children.length; c++ )
+        {
+
+            // Get the class of the child.
+            let class_of_child = root.children[c].class;
+            //console.log( class_of_child );
+
+            let build_info =  this.class_node_handlers[class_of_child]( root.children[c], false);
+            
+            root.calculated_offset[1] += build_info[2];
+            //console.log( root.calculated_offset[1], build_info );
+        }
+
+        return this.id_map;
+    }
+
+    // All event based animations section.
+
+    rerender ( root )
+    {
+        this.scene_context.animate.execute( this.rerender_internal.bind(this), root );
+    }
+
+    // Rerender tree
+    rerender_internal ( root )
+    {
+        // Store the element count for use in exporting the id_maps of the equations, will "element_name0..." by default if no id,  otherwise id.
+
+        // let node = root;
+        // let stack = [];
+        // while ( node.children.length >= 0  )
+        // {
+
+        //     console.log(node);
+
+        //     for( let i = 0; i < node.children.length; i++ )
+        //     {
+
+        //         stack.push ( node.children[i] );
+
+        //     }
+        //     node = stack.pop();
+
+        //     if ( node == undefined )
+        //     {
+        //         break;
+        //     }
+
+        // }
+
+        
+        // Elements should have like ids and stuff.
+        this.update_camera_far_plane();
+        // Set the baseline vectors
+        this.scene_context.math_parser.set_base_line_vectors(this.camera_right.clone().normalize(), this.camera_up.clone().normalize(), this.scene_context.camera.quaternion.clone().normalize());
+
+
+        // Set the id_map to a non existent one.
+        this.id_map = {
+            text_count: 0,
+            frac_count: 0,
+            equals_count: 0,
+            plot_count: 0,
+            tex_count: 0,
+            el_count: 0,
+            grid_count: 0,
+            root : undefined,
+            // Section for tracking equations
+            eq0 : {
+                equals_flag: "lhs",
+                lhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                rhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                all_ids: []
+
+            },
+            equation_tail: 0,
+            all_ids: []
+        };
+
+        // Set the root up in the id_map
+        this.id_map.root = root;
+        // Render the fui tree from the root
+        this.root = root;
+        this.rerender_fui_tree(root);
+
+
+        let backup_id_map = this.id_map;
+
+        // Set the id_map to a non existent one.
+        this.id_map = {
+            text_count: 0,
+            frac_count: 0,
+            equals_count: 0,
+            plot_count: 0,
+            tex_count: 0,
+            el_count: 0,
+            // Section for tracking equations
+            eq0 : {
+                equals_flag: "lhs",
+                lhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                rhs: {
+                    text_count: 0,
+                    frac_count: 0,
+                    all_ids: []
+                },
+                all_ids: []
+
+            },
+            equation_tail: 0,
+
+            all_ids: []
+        };
+
+        
+
+        // Need to put the local into the global from the beginning then only a then set the global for the current class before rendering.
+
+        return backup_id_map;
+    }
+
+    // Set up code here for now
+    remove_internal( node )
+    {
+        
+        if ( node.parent != undefined )
+        {
+            // Find the index of the node in terms of its parent.
+            let self_index = 0;
+            
+            for( let i = 0; i < node.parent.children; i++ )
+            {
+
+                if ( node.parent.children[i] == node )
+                {
+
+                    self_index = i;
+                    break;
+
+                }
+
+            }
+
+            // Remove self.
+            node.parent.children.splice( self_index, 1 );
+            
+        }
+
+        this.scene_context.math_parser.dispose ( node.text_ids );
+
+
+
+        
+
+    }
+
+    remove ( node )
+    {
+
+        this.scene_context.animate.execute( this.remove_internal.bind(this), node );
+
+        
+    }
+
+    change_text ( { node: node, text: new_text} )
+    {
+        node.textContent = new_text;
+    }
+
+    change_columns_internal ( { node: node, value: new_columns} ) 
+    {
+        console.log("before", node.grid_columns );
+        node.grid_columns = new_columns;
+        console.log("after", node.grid_columns );
+    }
+
+    change_columns ( node, new_value )
+    {
+        this.scene_context.animate.execute( this.change_columns_internal.bind(this), {node: node, value: new_value } );
+    }
 
 };
 
@@ -973,10 +1358,9 @@ class FUINode
         this.previously_rendered = undefined;
         this.text_ids = undefined;
 
-        
-
         // A module slot in case the node inherits from some alternative module rendering object.
         this.module = undefined;
+        this.module0 = undefined;
     }
 
     empty()
@@ -1032,6 +1416,7 @@ export class FUIParser
         this.class_indicators = {
             "grid" : this.assign_grid.bind(this),
             "plot" : this.assign_plot.bind(this),
+            "texture" : this.assign_texture.bind(this),
         };
 
 
@@ -1052,12 +1437,6 @@ export class FUIParser
         }
     }
 
-    // Grid Section
-    assign_grid ( )
-    {
-        this.current_assemble_node.class = "grid";
-
-    }
 
     expand_col ( values )
     {
@@ -1072,14 +1451,49 @@ export class FUIParser
         this.current_assemble_node.grid_rows = values;
     }
 
+    id_grid ( id_map_reference )
+    {
+        let grid_count = id_map_reference[0].grid_count;
+
+        id_map_reference[0][ `grid${grid_count}`] = this.current_assemble_node;
+
+        id_map_reference[0].grid_count += 1;
+
+    }
+    // Grid Section
+    assign_grid (id_map_reference )
+    {
+        this.current_assemble_node.class = "grid";
+        this.id_grid( id_map_reference );
+    }
+
     // Render target plane selection
-    assign_plot ( )
+    assign_plot ( id_map_reference )
     {
         this.current_assemble_node.class = "plot";
     }
 
+    // Assign the texture option
+    assign_texture( id_map_reference )
+    {
+        this.current_assemble_node.class = "texture";
+    }
+
+    id_element( node, id_map_reference )
+    {
+
+        let element_count = id_map_reference[0].el_count;
+
+        id_map_reference[0][ `el${element_count}`] = node;
+
+        id_map_reference[0].el_count += 1;
+
+    }
+
+    
+
     // Encountered an opening attribute tag.
-    expand_attributes()
+    expand_attributes(id_map_reference)
     {
         // Skip the inital opening tag
         this.token_index++;
@@ -1111,6 +1525,9 @@ export class FUIParser
             new_node.parent = this.current_assemble_node;
             this.current_assemble_node = new_node;
 
+            // Say this is element one
+            this.id_element ( this.current_assemble_node, id_map_reference);
+
 
         }
 
@@ -1141,7 +1558,7 @@ export class FUIParser
                 // At this point handle the attribute.
                 if ( this.class_indicators[attribute_name] != undefined )
                 {
-                    this.class_indicators[attribute_name]();
+                    this.class_indicators[attribute_name](id_map_reference);
                 }
 
                 // Then continue the loop
@@ -1261,10 +1678,6 @@ export class FUIParser
     expand_render_target_plane( value )
     {
 
-        console.log("Expansion failed due to equals sign!");
-
-        this.current_assemble_node.module = new RenderTargetPlane (  );
-
     }
 
     expand_width(value)
@@ -1302,7 +1715,7 @@ export class FUIParser
         this.current_assemble_node.id = value;
     }
 
-    parse_ui(ui_string)
+    parse_ui(ui_string, id_map_reference)
     {
         // Store the ui string
         this.ui_string = ui_string;
@@ -1332,7 +1745,7 @@ export class FUIParser
             if ( this.token_indicators[token] != undefined )
             {
                 // Then run the cooresponding operation
-                this.token_indicators[token]();
+                this.token_indicators[token]( id_map_reference );
 
             }else
             {

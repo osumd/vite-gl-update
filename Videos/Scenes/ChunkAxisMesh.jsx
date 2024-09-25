@@ -1,5 +1,41 @@
 
 import * as THREE from 'three';
+// Import the material object
+import Material from './Material';
+
+// Import troika text.
+import {Text} from 'troika-three-text';
+
+
+class ChunkAxisTikz {
+
+    constructor( axis, normal, binormal )
+    {
+        //  Link the axis, normal and binormal.
+        this.axis = axis;
+        this.normal = normal;
+        this.binormal = binormal;
+
+        // Store the text objects per chunk.
+        this.text_objects = [];
+
+        // Set the step length
+        this.step_length = 0.1;
+
+    }
+
+    
+
+    update_labels ( axis_projection )
+    {
+
+        // Find the nearest step value.
+
+    }
+
+
+
+};
 
 class ChunkAxisMesh
 {
@@ -14,14 +50,11 @@ class ChunkAxisMesh
 
         // Need to calculate the normal of the axis.
         this.normal = this.axis.clone().cross( new THREE.Vector3(-this.origin.x,1,1).add(this.origin) ).normalize();
-
-        
         this.binormal = this.normal.clone().cross(this.axis).normalize();
 
-        
         this.primitive_type = 4;
         // Maximum number of primitives per chunk.
-        this.primitives_per_chunk = 5;
+        this.primitives_per_chunk = 20;
         this.pixel_per_chunk = 1;
         this.size_of_chunk_structure = 4;
 
@@ -38,10 +71,22 @@ class ChunkAxisMesh
             {t_start: 1.0, radius: 0.0 },
         ];
 
+        // Arbitrary light setup
+        this.lights_texture = scene_context.lights;
+        this.material = new Material();
+
+
+        // Settings for base and tip length
+        this.shaft_radius = 0.2;
+        this.base_radius = this.shaft_radius*2;
+        this.tip_length = this.shaft_radius*8;
+
         // Generate the chunk properties after finding the chunks.
-        
-        this.find_point_chunks();
+        this.init_point_chunks_array ( );
+        this.init_point_chunks_property_array();
+        this.find_point_chunks0();
         this.generate_geometry_texture();
+        
         this.render_geometry_texture();
 
     }
@@ -340,7 +385,9 @@ class ChunkAxisMesh
             
         });
 
-        this.secondaryScene.add( new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator) )
+        this.ortho_plane_mesh = new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator);
+
+        this.secondaryScene.add( this.ortho_plane_mesh );
 
         // Create a render target
         this.renderTarget = new THREE.WebGLRenderTarget(this.geometry_texture_resolution.x,this.geometry_texture_resolution.y,{
@@ -357,10 +404,30 @@ class ChunkAxisMesh
 
         // Register on animate to generate the texture
         //this.scene_context.onAnimate.add_event( this.render_geometry_texture.bind(this) );
+
+        
+    }
+
+    // Use to update the geometry texture
+    update_geometry_texture()
+    {
+        // Update the uniforms
+        this.ortho_plane_mesh.material.uniforms.chunks_texture.value = this.chunks_texture;
+        this.ortho_plane_mesh.material.uniforms.chunks_property_texture.value = this.chunks_property_texture;
+        this.ortho_plane_mesh.material.uniforms.normal.value = this.normal;
+        this.ortho_plane_mesh.material.uniforms.binormal.value = this.binormal;
+
+        // Notify that the uniforms have been updated
+        this.ortho_plane_mesh.material.uniforms.chunks_texture.needsUpdate = true;
+        this.ortho_plane_mesh.material.uniforms.chunks_property_texture.needsUpdate = true;
+
+        // Re-render the geometry texture
+        this.render_geometry_texture();
     }
 
     render_geometry_texture()
     {
+        
         this.scene_context.renderer.setRenderTarget( this.renderTarget );
         this.scene_context.renderer.render( this.secondaryScene, this.secondaryCamera );
         this.scene_context.renderer.setRenderTarget(null);
@@ -466,13 +533,147 @@ class ChunkAxisMesh
         this.point_chunk_property_tail += 1;
     }
 
+    init_point_chunks_array ( )
+    {
+        this.point_chunk_array = undefined;
+        this.point_chunk_array_capacity = 0;
+        this.number_of_active_chunks = 0;
+        this.point_chunk_tail = 0;
+    }
+
+    init_point_chunks_property_array ( )
+    {
+        this.point_chunk_property_size = 1;
+        this.point_chunk_property_tail = 0;
+        this.point_chunk_properties_array_capacity = 0;
+        this.point_chunk_properties_array = undefined;
+
+    }
+
+
+    update_point_chunks_array( search_radius )
+    {
+
+        if ( this.point_chunk_array == undefined )
+        {
+            this.point_chunk_array = new Float32Array ( this.size_of_chunk_structure * search_radius * 2 * 4 );
+            this.point_chunk_array_capacity = this.size_of_chunk_structure * search_radius * 2 * 4;
+            this.number_of_active_chunks = 0;
+            this.point_chunk_tail = 0;
+        }
+        else if ( this.size_of_chunk_structure * search_radius * 2 * 4 > this.point_chunk_array_capacity )
+        {
+            this.point_chunk_array = new Float32Array ( this.size_of_chunk_structure * search_radius * 2 * 4 );
+            this.point_chunk_array_capacity = this.size_of_chunk_structure * search_radius * 2 * 4;
+            this.number_of_active_chunks = 0;
+            this.point_chunk_tail = 0;
+
+            console.log("new chunks");
+
+
+        }else{
+
+                
+
+            this.number_of_active_chunks = 0;
+            this.point_chunk_tail = 0;
+        }
+
+        
+
+    }
+
+    update_point_chunks_properties ( search_radius )
+    {
+
+        this.point_chunk_property_size = 1;
+        this.point_chunk_property_tail = 0;
+
+        if ( this.point_chunk_properties_array == undefined )
+        {
+            this.point_chunk_properties_array = new Float32Array ( this.point_chunk_property_size * search_radius*2*4 );
+            this.point_chunk_properties_array_capacity = this.point_chunk_property_size * search_radius*2*4;
+
+        }
+        else if ( this.point_chunk_property_size * search_radius*2*4 )
+        {
+            this.point_chunk_properties_array = new Float32Array ( this.point_chunk_property_size * search_radius*2*4 );
+            this.point_chunk_properties_array_capacity = this.point_chunk_property_size * search_radius*2*4;
+
+        }
+    }
+
+    update_chunks_texture  ( chunks_added )
+    {
+
+        if ( this.chunks_texture == undefined )
+        {
+            this.chunks_texture_resolution = new THREE.Vector2( Math.floor ( Math.sqrt ( this.size_of_chunk_structure * chunks_added ) ), Math.floor ( Math.sqrt ( this.size_of_chunk_structure * chunks_added ) ) );
+
+            this.chunks_texture = new THREE.DataTexture( this.point_chunk_array, this.chunks_texture_resolution.x, this.chunks_texture_resolution.y, THREE.RGBAFormat, THREE.FloatType );
+
+            this.last_chunks_added = chunks_added;
+
+            this.chunks_texture.needsUpdate = true;
+            
+        }else if ( chunks_added > this.last_chunks_added )
+        {
+
+            this.chunks_texture_resolution = new THREE.Vector2( Math.floor ( Math.sqrt ( this.size_of_chunk_structure * chunks_added ) ), Math.floor ( Math.sqrt ( this.size_of_chunk_structure * chunks_added ) ) );
+
+            this.chunks_texture = new THREE.DataTexture( this.point_chunk_array, this.chunks_texture_resolution.x, this.chunks_texture_resolution.y, THREE.RGBAFormat, THREE.FloatType );
+
+            this.last_chunks_added = chunks_added;
+            this.chunks_texture.needsUpdate = true;
+                
+
+        }else
+        {
+            this.chunks_texture.needsUpdate = true;
+            this.last_chunks_added = chunks_added;
+        }
+
+    }
+
+    update_chunks_properties_texture ( chunks_added )
+    {
+
+        if ( this.chunks_property_texture == undefined )
+        {
+            this.chunks_property_texture_resolution = new THREE.Vector2( Math.ceil ( Math.sqrt ( this.point_chunk_property_size * chunks_added ) ), Math.ceil ( Math.sqrt ( this.point_chunk_property_size * chunks_added ) ) );
+
+            this.chunks_property_texture = new THREE.DataTexture ( this.point_chunk_properties_array, this.chunks_property_texture_resolution.x, this.chunks_property_texture_resolution.y, THREE.RedFormat, THREE.FloatType );
+
+            this.last_chunks_added = chunks_added;
+            this.chunks_property_texture.needsUpdate = true;
+
+        }else if ( chunks_added > this.last_chunks_added ) {
+            this.chunks_property_texture_resolution = new THREE.Vector2( Math.ceil ( Math.sqrt ( this.point_chunk_property_size * chunks_added ) ), Math.ceil ( Math.sqrt ( this.point_chunk_property_size * chunks_added ) ) );
+
+            this.chunks_property_texture = new THREE.DataTexture ( this.point_chunk_properties_array, this.chunks_property_texture_resolution.x, this.chunks_property_texture_resolution.y, THREE.RedFormat, THREE.FloatType );
+
+            this.last_chunks_added = chunks_added;
+            this.chunks_property_texture.needsUpdate = true;
+            
+        }else {
+            this.last_chunks_added = chunks_added;
+            this.chunks_property_texture.needsUpdate = true;
+
+        }
+        
+
+
+    }
+        
+
     find_point_chunks()
     {
+
 
         this.clear_point_chunks();
 
         // Find the radius in which to look
-        let search_radius = 20;
+        let search_radius = 1;
 
         // Define the particular chunk size.
         let chunk_size = 1;
@@ -487,60 +688,71 @@ class ChunkAxisMesh
 
         let axis_projection = this.axis.clone().multiplyScalar ( -camera_normal_dot );
 
+        //console.log( "axis_to_projection", axis_projection);
+
         let camera_to_projection = axis_projection.clone().sub(camera_position );
 
         let axis_distance = camera_to_projection.length();
 
-        if ( axis_distance/chunk_size > search_radius )
-        {
+        // if ( axis_distance/chunk_size > search_radius )
+        // {
+            
+        //     return;
 
-            return;
+        // } 
 
-        } 
+        let chunks_added = search_radius+1;
 
-        let chunks_added = search_radius*2;
-
-        this.point_chunk_array = new Float32Array ( this.size_of_chunk_structure * search_radius * 2 * 4 );
-
-
-        this.point_chunk_property_size = 1;
-        this.point_chunk_property_tail = 0;
-
-        // Build a point chunk property array
-        this.point_chunk_properties_array = new Float32Array ( this.point_chunk_property_size * search_radius*2*4 );
+        this.update_point_chunks_array( search_radius );
+        this.update_point_chunks_properties ( search_radius );
 
         let point = axis_projection.clone();
 
-        let distance_to_origin = point.clone().sub(this.origin).length();
+        // Distance to projection
+        let distance_to_projection = point.clone().sub(axis_projection).length();
+
         // Find relative t range in which is chunk falls into. + 1 if the first and last points are not boundaries otherwise no plus one.
         let  upper_bound = axis_projection.clone().add( this.axis.clone().multiplyScalar ( (search_radius-1)*(chunk_size) ) );
 
-        let  total_distance = upper_bound.clone().sub(this.origin).length();
+        let  total_distance = (search_radius-1)*(chunk_size);
+
+        //console.log("total_distance", total_distance);
         
         // Find the relative distance in terms of the total distance
-        let point_t = (distance_to_origin)/(total_distance);
+        let point_t = (distance_to_projection)/(total_distance);
 
         // Find the correct chunk property based on t.
         let chunk_property = this.find_chunk_property( point_t );
 
-        this.add_point_chunk ( point );
-
+        this.add_point_chunk ( new THREE.Vector3(0,0,0) );
         this.add_chunk_property ( chunk_property.radius );
+
+
+        this.add_point_chunk ( new THREE.Vector3(0,0,1) );
+        this.add_chunk_property(1.0);
+
+        this.add_point_chunk ( new THREE.Vector3(0,0,-1) );
+        this.add_chunk_property(1.0);
+        
+
 
         for ( let s = search_radius-1; s > 1; s-- )
         {
             point = axis_projection.clone().sub ( this.axis.clone().multiplyScalar(s*chunk_size) );
 
-            distance_to_origin = point.clone().sub(this.origin).length();
+            distance_to_projection = point.clone().sub(axis_projection).length();
 
             // Find the relative distance in terms of the total distance
-            point_t = (distance_to_origin)/(total_distance);
+            point_t = (distance_to_projection)/(total_distance);
 
+            
             chunk_property = this.find_chunk_property( point_t );
 
-            this.add_point_chunk ( point );
+            //console.log(chunk_property);
 
-            this.add_chunk_property ( chunk_property.radius );
+            //this.add_point_chunk ( point );
+
+            //this.add_chunk_property ( chunk_property.radius );
         }
 
         for ( let s = 1; s < search_radius; s++ )
@@ -548,45 +760,231 @@ class ChunkAxisMesh
             
             point = axis_projection.clone().add ( this.axis.clone().multiplyScalar(s*chunk_size) );
             // Find the distance of the point from the origin
-            let distance_to_origin = point.clone().sub(this.origin).length();
+            distance_to_projection = point.clone().sub(axis_projection).length();
 
             // Find the relative distance in terms of the total distance
-            let point_t = (distance_to_origin)/(total_distance);
+            let point_t = (distance_to_projection)/(total_distance);
 
             // Find the correct chunk property based on t.
             let chunk_property = this.find_chunk_property( point_t );
 
             // We can then find the property associated with the chunk.
 
-            this.add_chunk_property ( chunk_property.radius );
+           // this.add_chunk_property ( chunk_property.radius );
 
-            this.add_point_chunk ( point );
+            //this.add_point_chunk ( point );
 
         }
 
 
+        this.update_chunks_texture( chunks_added );
+        this.update_chunks_properties_texture( chunks_added );
 
         
 
-        this.chunks_texture_resolution = new THREE.Vector2( Math.floor ( Math.sqrt ( this.size_of_chunk_structure * chunks_added ) ), Math.floor ( Math.sqrt ( this.size_of_chunk_structure * chunks_added ) ) );
+    }
+
+    find_point_chunks0()
+    {
+
+        // Searches large a reas with respect the projection to the axis itself,
+        // If the point falls outside of the current chunk span then reset the chunk array
+        // and add the current chunk to the 
+
+        this.clear_point_chunks();
+
+        let chunk_block_size = 17;
+
+        // Define the dimensions of the cone tip
+        let tip_length = this.tip_length;
+
+        // Get the projection point to the axis.
+
+        // Get the camera position
+        let camera_position = this.scene_context.camera.position.clone();
+
+        // Get the camera to origin of the axis.
+        let camera_to_origin = this.origin.clone().sub( camera_position );
+
+        let camera_normal_dot = camera_to_origin.dot( this.axis ) ;
+
+        let axis_projection = this.axis.clone().multiplyScalar ( -camera_normal_dot );
+        let neg_axis_projection = this.axis.clone().multiplyScalar( camera_normal_dot );
+
+        let search_radius = 10;
+
+        if ( this.previous_axis_projection == undefined )
+        {
+            // Then reset the chunks array and build the new axis mesh.
+            this.update_point_chunks_array( search_radius );
+            this.update_point_chunks_properties ( search_radius );
+
+            this.add_point_chunk ( this.origin );
+            this.add_chunk_property ( 1.0 );
 
 
-        this.chunks_texture = new THREE.DataTexture( this.point_chunk_array, this.chunks_texture_resolution.x, this.chunks_texture_resolution.y, THREE.RGBAFormat, THREE.FloatType );
+            // Just add the origin as the origin point.
+            if ( camera_normal_dot < 0 )
+                {
+                    // Add manually 
+                    let end_base_pos = axis_projection.clone().add ( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+                    let end_base_neg = neg_axis_projection.clone().sub( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
 
-        this.chunks_property_texture_resolution = new THREE.Vector2( Math.ceil ( Math.sqrt ( this.point_chunk_property_size * chunks_added ) ), Math.ceil ( Math.sqrt ( this.point_chunk_property_size * chunks_added ) ) );
+                    let tip_pos  = axis_projection.clone().add ( this.axis.clone().multiplyScalar(chunk_block_size) );
+                    let tip_neg  = neg_axis_projection.clone().sub ( this.axis.clone().multiplyScalar(chunk_block_size) );
 
-        //console.log(this.point_chunk_properties_array);
+                    // Just add the origin as the origin point.
+                    this.add_point_chunk ( tip_neg );
+                    this.add_chunk_property( 0.0 );
+
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property( this.base_radius );
+
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property( this.shaft_radius );
+
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property( this.shaft_radius );
+
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property( this.base_radius );
+
+                    this.add_point_chunk ( tip_pos );
+                    this.add_chunk_property( 0.0 );
+
+                }else
+                {
+
+                    // Add manually 
+                    let end_base_pos = axis_projection.clone().sub ( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+                    let end_base_neg = neg_axis_projection.clone().add( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+
+                    let tip_pos  = axis_projection.clone().sub ( this.axis.clone().multiplyScalar(chunk_block_size) );
+                    let tip_neg  = neg_axis_projection.clone().add ( this.axis.clone().multiplyScalar(chunk_block_size) );
+
+                    this.add_point_chunk ( tip_pos );
+                    this.add_chunk_property(0.0);
+
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property(this.base_radius);
+
+                    // Just add the origin as the origin point.
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property(this.shaft_radius);
+
+                    
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property(this.shaft_radius);
+
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property( this.base_radius );
+
+                    this.add_point_chunk ( tip_neg );
+                    this.add_chunk_property( 0.0 );
+
+                
+                }
+
+            
+            // Set the previous axis projection point.
+            this.previous_axis_projection = axis_projection.clone();
+            
+
+        }else
+        {
+
+            // Calculate the distance between the projection points.
+
+            let distance = axis_projection.clone().sub(this.previous_axis_projection).length();
+
+            //console.log(distance);
+
+            if ( distance > chunk_block_size )
+            {
+
+                
+                // Then reset the chunks array and build the new axis mesh.
+                this.update_point_chunks_array( search_radius );
+                this.update_point_chunks_properties ( search_radius );
+
+                this.add_point_chunk ( this.origin );
+                this.add_chunk_property ( 1.0 );
+
+                
+
+                if ( camera_normal_dot < 0 )
+                {
+                    // Add manually 
+                    let end_base_pos = axis_projection.clone().add ( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+                    let end_base_neg = neg_axis_projection.clone().sub( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+
+                    let tip_pos  = axis_projection.clone().add ( this.axis.clone().multiplyScalar(chunk_block_size) );
+                    let tip_neg  = neg_axis_projection.clone().sub ( this.axis.clone().multiplyScalar(chunk_block_size) );
+
+                    // Just add the origin as the origin point.
+                    this.add_point_chunk ( tip_neg );
+                    this.add_chunk_property( 0.0 );
+
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property( this.base_radius );
+
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property( this.shaft_radius );
+
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property( this.shaft_radius );
+
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property( this.base_radius );
+
+                    this.add_point_chunk ( tip_pos );
+                    this.add_chunk_property( 0.0 );
+
+                }else
+                {
+
+                    // Add manually 
+                    let end_base_pos = axis_projection.clone().sub ( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+                    let end_base_neg = neg_axis_projection.clone().add( this.axis.clone().multiplyScalar(chunk_block_size - tip_length) );
+
+                    let tip_pos  = axis_projection.clone().sub ( this.axis.clone().multiplyScalar(chunk_block_size) );
+                    let tip_neg  = neg_axis_projection.clone().add ( this.axis.clone().multiplyScalar(chunk_block_size) );
+
+                    this.add_point_chunk ( tip_pos );
+                    this.add_chunk_property(0.0);
+
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property(this.base_radius);
+
+                    // Just add the origin as the origin point.
+                    this.add_point_chunk ( end_base_pos );
+                    this.add_chunk_property(this.shaft_radius);
+
+                    
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property(this.shaft_radius);
+
+                    this.add_point_chunk ( end_base_neg );
+                    this.add_chunk_property( this.base_radius );
+
+                    this.add_point_chunk ( tip_neg );
+                    this.add_chunk_property( 0.0 );
+
+                
+                }
+
+                
+                
+                // Set the previous axis projection point.
+                this.previous_axis_projection = axis_projection.clone();
+            }
+
+        }
+
         
-    
-        // 
-        this.chunks_property_texture = new THREE.DataTexture ( this.point_chunk_properties_array, this.chunks_property_texture_resolution.x, this.chunks_property_texture_resolution.y, THREE.RedFormat, THREE.FloatType );
-
-        this.chunks_texture.needsUpdate = true;
-        this.chunks_property_texture.needsUpdate = true;
-
-        //console.log ( this.point_chunk_array );
         
-
+        this.update_chunks_texture( search_radius );
+        this.update_chunks_properties_texture( search_radius ) ;
 
     }
 
@@ -598,17 +996,16 @@ class ChunkAxisMesh
 
     set_axis ( axis )
     {   
-        this.axis = axis;
-
+        this.axis = axis.clone();
+        // Need to calculate the normal of the axis.
         this.normal = this.axis.clone().cross( new THREE.Vector3(-this.origin.x,1,1).add(this.origin) ).normalize();
-
         this.binormal = this.normal.clone().cross(this.axis).normalize();
 
-        this.find_point_chunks();
-
-        this.generate_geometry_texture();
-        this.render_geometry_texture();
-
+        this.find_point_chunks0();
+        this.update_geometry_texture();
+        //this.generate_geometry_texture();
+        //this.render_geometry_texture();
+        
     }
     
 
@@ -658,6 +1055,33 @@ class ChunkAxisMesh
 
         uniform mat4 model;
 
+        // Sending the normal 
+        varying vec3 o_normal;
+        // Send the fragment position
+        varying vec3 o_fragpos;
+
+        vec3 calculate_normal (  )
+        {
+
+            // Left hand side so the normal so the reference coordinates should be
+            ivec2 bottom_pixel = ivec2 ( ((gl_InstanceID*primitive_type)) % int(resolution.x), ((gl_InstanceID*primitive_type)) / int(resolution.x) );
+            ivec2 right_pixel = ivec2 ( ((gl_InstanceID*primitive_type) + 1) % int(resolution.x), ((gl_InstanceID*primitive_type) + 1) / int(resolution.x) );
+            ivec2 top_pixel = ivec2 ( ((gl_InstanceID*primitive_type) + 2) % int(resolution.x), ((gl_InstanceID*primitive_type) + 2) / int(resolution.x) );
+            ivec2 up_pixel = ivec2 ( ((gl_InstanceID*primitive_type) + 3) % int(resolution.x), ((gl_InstanceID*primitive_type) + 3) / int(resolution.x) );
+
+            // Texel snatch the according vertex.
+            vec3 right_pos = texelFetch(geometry_texture, right_pixel, 0).xyz;
+            vec3 bottom_pos = texelFetch ( geometry_texture, bottom_pixel, 0).xyz;
+            vec3 up_pos = texelFetch(geometry_texture, up_pixel, 0).xyz;
+            
+            vec4 right_vec = model*vec4 ( normalize ( right_pos - bottom_pos ), 1.0);
+            vec4 up_vec = model* vec4 ( normalize ( up_pos - bottom_pos ), 1.0 );
+
+            return cross ( right_vec.xyz, up_vec.xyz );
+
+        }
+
+
         void main ( )
         {
 
@@ -669,7 +1093,11 @@ class ChunkAxisMesh
 
             // Modify position based on instance ID
             vec3 pos = geom.xyz;
-                
+            
+            // Calculate the normal and ship it out
+                o_normal = calculate_normal ( );
+            // Send the fragment pos
+                o_fragpos = vec3( model * vec4(pos, 1.0) );
       
             // Apply standard transformations
             gl_Position = projectionMatrix * modelViewMatrix * model* vec4(pos, 1.0);
@@ -678,10 +1106,128 @@ class ChunkAxisMesh
 
         let fragment_shader = `
         
+
+        // Sending the normal 
+            varying vec3 o_normal;
+        // Send the fragment position
+            varying vec3 o_fragpos;
+        
+        // Get the view pos in there
+        uniform vec3 viewPos;
+
+        uniform vec3 ambient;
+        uniform vec3 diffuse;
+        uniform vec3 specular;
+        uniform float shininess;
+
+        // Texture of lights these are the essential ingredients of a texture vector;
+        uniform sampler2D lights;
+        // Resolution of the lights texture.
+        uniform ivec2 lights_dimension;
+        // Number of lights
+        uniform int lights_count;
+        // Then the size of the structure in terms of floats 
+        uniform int lights_struct_size;
+
+        ivec2 light_index ( int light, int stride )
+        {
+
+            int index =  ( ( light * lights_struct_size )/4 ) + stride;
+
+            int index_x = index % lights_dimension.x;
+            int index_y = index / lights_dimension.x;
+
+            return ivec2( index_x, index_y );
+
+        }
+
+        vec4 point_light ( vec4 color, vec4 light_pos, vec4 light_diffuse, vec4 light_ambient, vec4 light_specular, vec4 light_type )
+        {
+
+            // Set the light color
+            vec3 lightAmbient = light_ambient.xyz;
+
+            vec3 ambient = lightAmbient * ambient;
+
+            // This lighting runs for each light and updates the light of the object in each pass.
+            vec3 norm = normalize(o_normal);
+            vec3 lightDir = light_pos.xyz - o_fragpos;
+
+            // Distance.
+            float lightDirLength = length(lightDir);
+
+            float intensity = 4.0;
+            float attenuation = ( intensity/ (  1.0 + (0.7*lightDirLength) + 0.0*( lightDirLength*lightDirLength ) ));
+            //attenuation = intensity / lightDirLength;
+
+
+            lightDir = normalize(lightDir);
+
+            float diff = max( dot(norm,lightDir), 0.0 );
+            
+            vec3 diffuse = ( diff * diffuse  ) * light_diffuse.xyz;
+
+            // Specular
+            float specularStrength = 0.5;
+            vec3 viewDir = normalize(viewPos.xyz - o_fragpos);
+            vec3 reflectDir = reflect(-lightDir, norm);
+            float spec = pow( max( dot(viewDir,reflectDir),0.0 ), shininess);
+            vec3 specular = (spec * specular) * lightAmbient;
+
+            ambient *= attenuation;
+            diffuse *= attenuation;
+            specular *= attenuation;
+
+
+            return vec4(diffuse + specular + ambient, 1.0);
+            
+
+        }
+
+
+
+
+        
+        vec4 calculate_lighting ( )
+        {
+
+            // Set the color
+            vec4 color = vec4(0,0,0,1);
+
+            // Iterate through each light and extract it from the lights sampler2D
+            for ( int i = 0; i < lights_count; i++ )
+            {
+            
+                vec4 light_pos = texelFetch( lights, light_index(i, 0), 0 );
+                vec4 light_diffuse = texelFetch ( lights, light_index(i,1), 0 );
+                vec4 light_ambient = texelFetch ( lights, light_index(i,2), 0);
+                vec4 light_specular = texelFetch ( lights, light_index(i,3), 0);
+                vec4 light_type = texelFetch ( lights, light_index(i,4), 0);
+
+                if ( light_type.x == 1.0 )
+                {
+                    color += point_light ( color, light_pos, light_diffuse, light_ambient, light_specular, light_type );  
+                    
+                }
+
+                
+                
+                
+                
+            }
+
+
+
+            return color;
+        
+
+
+        }
+
         void main ( )
         {
 
-            gl_FragColor = vec4 ( 0.0, 1.0, 0.0, 1.0 );
+            gl_FragColor = calculate_lighting();
 
         }
         `
@@ -693,14 +1239,24 @@ class ChunkAxisMesh
                 "geometry_texture" : { value: this.renderTarget.texture },
                 "resolution" : { value: this.geometry_texture_resolution },
                 "primitive_type" : { value: this.primitive_type },
-                "model" : { value: new THREE.Matrix4() }
+                "model" : { value: new THREE.Matrix4() },
+
+                "lights": {value: this.lights_texture.texture() },
+                "lights_dimension" : {value: this.lights_texture.dimension() },
+                "lights_count" : {value: this.lights_texture.count()  },
+                "lights_struct_size": {value: this.lights_texture.struct_size() },
+                "viewPos" : {value:this.scene_context.camera.position},
+                "ambient" : { value:this.material.ambient },
+                "diffuse" : {value:this.material.diffuse},
+                "specular" : {value:this.material.specular},
+                "shininess" : {value:this.material.shininess}
             },
             side: THREE.DoubleSide
         });
 
-        let mesh = new THREE.InstancedMesh(plane_geometry, material, this.number_of_active_chunks*this.primitives_per_chunk);
+        this.mesh = new THREE.InstancedMesh(plane_geometry, material, this.number_of_active_chunks*this.primitives_per_chunk);
 
-        scene.add ( mesh );
+        scene.add ( this.mesh );
 
 
     }

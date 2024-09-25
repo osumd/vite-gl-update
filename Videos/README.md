@@ -42,19 +42,58 @@ Scene (Scene Name):
                     </>
 
                     <>
-                        < RenderTargetPlane >
-                            < Plot >
-                            </>
-                        </>
                     </>
+
+                    <texture>
+                    </>
+
+                    < plot id = "plot" >
+                    </>
+
                 </>
             
             " ); 
 
             animate.opacity ( s1doc.lhs.equation1, s1doc.rhs.equation1 ); // fade in
             animate.opacity ( s1doc.plot );
-            s1doc.add_point ( s1doc.equation0.input );
+
+            let plane = s1doc.infinity_plane ( origin,  ); 
+
+            let p1 = s1doc.fade_in_point ( ( s1doc.eq0.input, s1doc.eq0.input ) );
+            let p2 = s1doc.fade_in_point ( ( s1doc.eq1.input, s1doc.eq1.input ) );
+
+            animate.lookat ( s1doc.plot.camera, p1 );
+            animate.lookat ( s1doc.plot.camera, p2 );
+
+            // In the future make it possible to assign ids to textures
             
+            animate.opacity ( s1doc.geometry_texture );
+            animate.rotate_view ( s1doc.plot.camera, 0, target, 180 );
+
+            s1doc.plot.materialize_line ( p1, p2 );
+            s1doc.plot.coordinate_plane ( y = 1 );
+
+
+            // What should happen here.
+            s1doc.remove("el0")
+
+            s1doc.grid.columns = ["50%"]
+            s1doc.grid.rows = ["50%, 50%"]
+
+            context.animate.execute ( value_to_change, post_value, update_function )
+
+            in each sequence, plot the ball sequence, set labels nodally representing the node text mode.
+
+            for each ball then simply reveal the relevent sequence information
+            s1doc.plot ( fibonacci value );
+            context.animate.uniform ( )
+            
+
+            s1doc.plot.add_plane ( i );
+            s1doc.view_plane ( );
+            s1doc.plot.fade_in_point
+
+
 
             // Procedural model
             let pl = planar_ui ( );

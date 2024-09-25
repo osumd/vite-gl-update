@@ -28,16 +28,16 @@ function ElementSphere ( radius_ )
 
         let last_index = 1;
 
-        mesh_data[memoryDataBack] = Math.cos(0)*Math.sin(0);
-        mesh_data[memoryDataBack+1] = Math.sin(0)*Math.sin(0);
-        mesh_data[memoryDataBack+2] = Math.cos(0);
+        mesh_data[memoryDataBack] = radius*Math.cos(0)*Math.sin(0);
+        mesh_data[memoryDataBack+1] = radius*Math.sin(0)*Math.sin(0);
+        mesh_data[memoryDataBack+2] = radius*Math.cos(0);
 
         mesh_data[memoryDataBack+3] = 0;
         mesh_data[memoryDataBack+4] = 0;
-        mesh_data[memoryDataBack+5] = -1;
+        mesh_data[memoryDataBack+5] = 1;
         
-        mesh_data[memoryDataBack+6] = (0%2);
-        mesh_data[memoryDataBack+7] = (0%2);
+        mesh_data[memoryDataBack+6] = 0;
+        mesh_data[memoryDataBack+7] = 0;
 
         memoryDataBack += 8;
 
@@ -55,9 +55,9 @@ function ElementSphere ( radius_ )
                 let theta = dtheta*dh;
                 let thetap = dtheta*(dh+1);
             
-                p0.x = Math.cos(theta)*Math.sin(phi);
-                p0.y = Math.sin(theta)*Math.sin(phi);
-                p0.z = Math.cos(phi);
+                p0.x = radius*Math.cos(theta)*Math.sin(phi);
+                p0.y = radius*Math.sin(theta)*Math.sin(phi);
+                p0.z = radius*Math.cos(phi);
 
                 let norm = Math.sqrt(p0.x*p0.x + p0.y*p0.y + p0.z*p0.z);
                 if(!isNaN(norm))
@@ -65,17 +65,17 @@ function ElementSphere ( radius_ )
                     //p0.divideScalar(norm);
                 }
 
-                p1.x = Math.cos(theta)*Math.sin(phip);
-                p1.y = Math.sin(theta)*Math.sin(phip);
-                p1.z = Math.cos(phip);
+                p1.x = radius*Math.cos(theta)*Math.sin(phip);
+                p1.y = radius*Math.sin(theta)*Math.sin(phip);
+                p1.z = radius*Math.cos(phip);
 
-                p2.x = Math.cos(thetap)*Math.sin(phip);
-                p2.y = Math.sin(thetap)*Math.sin(phip);
-                p2.z = Math.cos(phip);
+                p2.x = radius*Math.cos(thetap)*Math.sin(phip);
+                p2.y = radius*Math.sin(thetap)*Math.sin(phip);
+                p2.z = radius*Math.cos(phip);
 
-                p3.x = Math.cos(thetap)*Math.sin(phi);
-                p3.y = Math.sin(thetap)*Math.sin(phi);
-                p3.z = Math.cos(phi);
+                p3.x = radius*Math.cos(thetap)*Math.sin(phi);
+                p3.y = radius*Math.sin(thetap)*Math.sin(phi);
+                p3.z = radius*Math.cos(phi);
 
                 // p1.x = Math.cos(thetap)*Math.sin(phi);
                 // p1.y = Math.sin(thetap)*Math.sin(phi);
@@ -97,13 +97,15 @@ function ElementSphere ( radius_ )
                 mesh_data[memoryDataBack+1] = p0.y;
                 mesh_data[memoryDataBack+2] = p0.z;
                 
-                mesh_data[memoryDataBack+3] = n.x;
-                mesh_data[memoryDataBack+4] = n.y;
-                mesh_data[memoryDataBack+5] = n.z;
+                mesh_data[memoryDataBack+3] = -n.x;
+                mesh_data[memoryDataBack+4] = -n.y;
+                mesh_data[memoryDataBack+5] = -n.z;
 
                 mesh_data[memoryDataBack+6] = (dh%2);
                 mesh_data[memoryDataBack+7] = (ph%2);
 
+                //mesh_data[memoryDataBack+6] = (dh/(xdiv+1));
+                //mesh_data[memoryDataBack+7] = (ph/(ydiv+1));
 
                 memoryDataBack += 8;
 
@@ -147,9 +149,9 @@ function ElementSphere ( radius_ )
 
         }
 
-        mesh_data[memoryDataBack] = Math.cos(Math.PI*2)*Math.sin(Math.PI);
-        mesh_data[memoryDataBack+1] = Math.cos(Math.PI*2)*Math.sin(Math.PI);;
-        mesh_data[memoryDataBack+2] = -1;
+        mesh_data[memoryDataBack] = radius*Math.cos(Math.PI*2)*Math.sin(Math.PI);
+        mesh_data[memoryDataBack+1] = radius*Math.cos(Math.PI*2)*Math.sin(Math.PI);;
+        mesh_data[memoryDataBack+2] = -radius;
 
         
         mesh_data[memoryDataBack+3] = 0;

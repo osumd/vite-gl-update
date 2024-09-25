@@ -14,18 +14,25 @@ function OpenCylinder()
         
         let bufferGeometry = new THREE.BufferGeometry();
 
-        let vertices = new Float32Array((4*3*12));
-        let normals = new Float32Array((4*3*12));
-        let uvs = new Float32Array((2*4*12));
-        let elements = new Uint16Array((6*12));
+
+        let divisions = 12;
+
+        let vertices = new Float32Array(( 4*3*12 + (3*3*divisions*2)));
+        let normals = new Float32Array((4*3*12 + (3*3*divisions*2)));
+        let uvs = new Float32Array((2*4*12 + (2*3*divisions*2)));
+        let elements = new Uint16Array((6*12 + (3*divisions*2)));
 
         let currentVertex = 0;
         let j = 0;
         let push_array = [0,0];
 
-        push_array = push_cylinder_back(start, end, 0.01, vertices, normals,uvs,elements, currentVertex, j, 12);
+        push_array = push_cylinder_back(start, end, 1, vertices, normals,uvs,elements, currentVertex, j, divisions);
 
         currentVertex = push_array[0]; j = push_array[1];
+
+        //push_array = close_caps(start, end, 1, vertices, normals,uvs,elements, currentVertex, j, divisions );
+
+        
         
         bufferGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
@@ -55,8 +62,8 @@ function OpenCylinder()
             
             let temp = new THREE.Vector3(0,0,0);
     
-    
-            for(var i = 0; i < divisions; i++)
+
+            for(var i = 0; i <= divisions; i++)
             {
                 var a0 = i*dr;
                 var a1 = (i+1)*dr;
@@ -87,63 +94,84 @@ function OpenCylinder()
     
                 //console.log(p0,p1,p2,p3);
     
-                vertices[(currentVertex*12)] = p0.x;
-                vertices[(currentVertex*12)+1] = p0.y;
-                vertices[(currentVertex*12)+2] = p0.z;
+                vertices[(currentVertex*6)] = p0.x;
+                vertices[(currentVertex*6)+1] = p0.y;
+                vertices[(currentVertex*6)+2] = p0.z;
     
-                vertices[(currentVertex*12)+3] = p1.x;
-                vertices[(currentVertex*12)+4] = p1.y;
-                vertices[(currentVertex*12)+5] = p1.z;
+                vertices[(currentVertex*6)+3] = p1.x;
+                vertices[(currentVertex*6)+4] = p1.y;
+                vertices[(currentVertex*6)+5] = p1.z;
     
-                vertices[(currentVertex*12)+6] = p2.x;
-                vertices[(currentVertex*12)+7] = p2.y;
-                vertices[(currentVertex*12)+8] = p2.z;
+                // vertices[(currentVertex*12)+6] = p2.x;
+                // vertices[(currentVertex*12)+7] = p2.y;
+                // vertices[(currentVertex*12)+8] = p2.z;
     
-                vertices[(currentVertex*12)+9] = p3.x;
-                vertices[(currentVertex*12)+10] = p3.y;
-                vertices[(currentVertex*12)+11] = p3.z;
+                // vertices[(currentVertex*12)+9] = p3.x;
+                // vertices[(currentVertex*12)+10] = p3.y;
+                // vertices[(currentVertex*12)+11] = p3.z;
     
-                uvs[(currentVertex*8)] = 0;
-                uvs[(currentVertex*8)+1] = 0;
+                uvs[(currentVertex*4)] = 0;
+                uvs[(currentVertex*4)+1] = 0;
                 
-                uvs[(currentVertex*8)+2] = 1;
-                uvs[(currentVertex*8)+3] = 0;
+                uvs[(currentVertex*4)+2] = 1;
+                uvs[(currentVertex*4)+3] = 0;
     
-                uvs[(currentVertex*8)+4] = 1;
-                uvs[(currentVertex*8)+5] = 1;
+                // uvs[(currentVertex*8)+4] = 1;
+                // uvs[(currentVertex*8)+5] = 1;
     
-                uvs[(currentVertex*8)+6] = 0;
-                uvs[(currentVertex*8)+7] = 1;
+                // uvs[(currentVertex*8)+6] = 0;
+                // uvs[(currentVertex*8)+7] = 1;
     
                 var n = p1.sub(p0).cross(p3.sub(p0)).normalize();
     
-                normals[(currentVertex*12)] = n.x;
-                normals[(currentVertex*12)+1] = n.y;
-                normals[(currentVertex*12)+2] = n.z;
+                normals[(currentVertex*6)] = n.x;
+                normals[(currentVertex*6)+1] = n.y;
+                normals[(currentVertex*6)+2] = n.z;
                 
-                normals[(currentVertex*12)+3] = n.x;
-                normals[(currentVertex*12)+4] = n.y;
-                normals[(currentVertex*12)+5] = n.z;
+                normals[(currentVertex*6)+3] = n.x;
+                normals[(currentVertex*6)+4] = n.y;
+                normals[(currentVertex*6)+5] = n.z;
     
-                normals[(currentVertex*12)+6] = n.x;
-                normals[(currentVertex*12)+7] = n.y;
-                normals[(currentVertex*12)+8] = n.z;
+                // normals[(currentVertex*12)+6] = n.x;
+                // normals[(currentVertex*12)+7] = n.y;
+                // normals[(currentVertex*12)+8] = n.z;
     
-                normals[(currentVertex*12)+9] = n.x;
-                normals[(currentVertex*12)+10] = n.y;
-                normals[(currentVertex*12)+11] = n.z;
+                // normals[(currentVertex*12)+9] = n.x;
+                // normals[(currentVertex*12)+10] = n.y;
+                // normals[(currentVertex*12)+11] = n.z;
     
-                elements[(currentVertex*6)] = j;
-                elements[(currentVertex*6)+1] = j+1;
-                elements[(currentVertex*6)+2] = j+2;
+                if ( i == 0 )
+                {
+                    elements[(currentVertex*6)] = j;
+                    elements[(currentVertex*6)+1] = j+1;
+                    elements[(currentVertex*6)+2] = j+2;
+
+                    elements[(currentVertex*6)+3] = j;
+                    elements[(currentVertex*6)+4] = j+3;
+                    elements[(currentVertex*6)+5] = j+2;
+                    
+                }else
+                {
+                    elements[(currentVertex*6)] = j-2;
+                    elements[(currentVertex*6)+1] = j-1;
+                    elements[(currentVertex*6)+2] = j+1;
+
+                    elements[(currentVertex*6)+3] = j-2;
+                    elements[(currentVertex*6)+4] = j+1;
+                    elements[(currentVertex*6)+5] = j;
+                }
+                
+
+
+                
     
-                elements[(currentVertex*6)+3] = j;
-                elements[(currentVertex*6)+4] = j+2;
-                elements[(currentVertex*6)+5] = j+3
+                // elements[(currentVertex*6)+3] = j;
+                // elements[(currentVertex*6)+4] = j+2;
+                // elements[(currentVertex*6)+5] = j+3
     
                 currentVertex += 1;
     
-                j+=4;
+                j+=2;
     
             }
     
@@ -151,6 +179,165 @@ function OpenCylinder()
     
         }
     
+        function close_caps( start, end, radius, vertices, normals, uvs, elements, currentVertex, j, divisions )
+        {
+
+            // Set the last _buffer
+            let last = currentVertex;
+            currentVertex = 0;
+
+            let axis = end.clone().sub(start).normalize();
+            let axis_norm = axis.clone().cross(new THREE.Vector3(axis.x + 0.1 , axis.y + 0.1, axis.z + 0.1)).normalize();
+            
+            //console.log(axis)
+            //console.log(axis_norm);
+
+            let dr = (Math.PI*2)/divisions;
+    
+            let p0 = new THREE.Vector3(0,0,0);
+            let p1 = new THREE.Vector3(0,0,0);
+            let p2 = new THREE.Vector3(0,0,0);
+            
+            let temp = new THREE.Vector3(0,0,0);
+    
+    
+            for(var i = 0; i < divisions; i++)
+            {
+                var a0 = i*dr;
+                var a1 = (i+1)*dr;
+            
+                quaternion_axis_angle(axis_norm, axis, a0, temp);
+
+                //console.log(temp);
+                p0.x = start.x;
+                p0.y = start.y;
+                p0.z = start.z;
+    
+                p1.x = start.x + temp.x*radius;
+                p1.y = start.y + temp.y*radius;
+                p1.z = start.z + temp.z*radius;
+                
+                quaternion_axis_angle(axis_norm, axis, a1, temp);
+                //console.log(temp)
+                
+                p2.x = start.x + temp.x*radius;
+                p2.y = start.y + temp.y*radius;
+                p2.z = start.z + temp.z*radius;
+                
+                vertices[(last*12)+ (currentVertex*9)] = p0.x;
+                vertices[(last*12)+(currentVertex*9)+1] = p0.y;
+                vertices[(last*12)+(currentVertex*9)+2] = p0.z;
+    
+                vertices[(last*12)+(currentVertex*9)+3] = p1.x;
+                vertices[(last*12)+(currentVertex*9)+4] = p1.y;
+                vertices[(last*12)+(currentVertex*9)+5] = p1.z;
+    
+                vertices[(last*12)+(currentVertex*9)+6] = p2.x;
+                vertices[(last*12)+(currentVertex*9)+7] = p2.y;
+                vertices[(last*12)+(currentVertex*9)+8] = p2.z;
+    
+                uvs[(last*8)+(currentVertex*6)] = 0;
+                uvs[(last*8)+(currentVertex*6)+1] = 0;
+                
+                uvs[(last*8)+(currentVertex*6)+2] = 1;
+                uvs[(last*8)+(currentVertex*6)+3] = 0;
+    
+                uvs[(last*8)+(currentVertex*6)+4] = 1;
+                uvs[(last*8)+(currentVertex*6)+5] = 1;
+    
+                var n = p1.sub(p0).cross(p2.sub(p0));
+    
+                normals[(last*12)+(currentVertex*9)] = n.x;
+                normals[(last*12)+(currentVertex*9)+1] = n.y;
+                normals[(last*12)+(currentVertex*9)+2] = n.z;
+                
+                normals[(last*12)+(currentVertex*9)+3] = n.x;
+                normals[(last*12)+(currentVertex*9)+4] = n.y;
+                normals[(last*12)+(currentVertex*9)+5] = n.z;
+    
+                normals[(last*12)+(currentVertex*9)+6] = n.x;
+                normals[(last*12)+(currentVertex*9)+7] = n.y;
+                normals[(last*12)+(currentVertex*9)+8] = n.z;
+    
+
+                elements[(last*6)+(currentVertex*3)] = j;
+                elements[(last*6)+(currentVertex*3)+1] = j+1;
+                elements[(last*6)+(currentVertex*3)+2] = j+2;
+    
+                currentVertex += 1;
+    
+                j+=3;
+
+
+                quaternion_axis_angle(axis_norm, axis, a0, temp);
+
+                //console.log(temp);
+                p0.x = end.x;
+                p0.y = end.y;
+                p0.z = end.z;
+    
+                p1.x = end.x + temp.x*radius;
+                p1.y = end.y + temp.y*radius;
+                p1.z = end.z + temp.z*radius;
+                
+                quaternion_axis_angle(axis_norm, axis, a1, temp);
+                //console.log(temp)
+                
+                p2.x = end.x + temp.x*radius;
+                p2.y = end.y + temp.y*radius;
+                p2.z = end.z + temp.z*radius;
+                
+                vertices[(last*12)+ (currentVertex*9)] = p0.x;
+                vertices[(last*12)+(currentVertex*9)+1] = p0.y;
+                vertices[(last*12)+(currentVertex*9)+2] = p0.z;
+    
+                vertices[(last*12)+(currentVertex*9)+3] = p1.x;
+                vertices[(last*12)+(currentVertex*9)+4] = p1.y;
+                vertices[(last*12)+(currentVertex*9)+5] = p1.z;
+    
+                vertices[(last*12)+(currentVertex*9)+6] = p2.x;
+                vertices[(last*12)+(currentVertex*9)+7] = p2.y;
+                vertices[(last*12)+(currentVertex*9)+8] = p2.z;
+    
+                uvs[(last*8)+(currentVertex*6)] = 0;
+                uvs[(last*8)+(currentVertex*6)+1] = 0;
+                
+                uvs[(last*8)+(currentVertex*6)+2] = 1;
+                uvs[(last*8)+(currentVertex*6)+3] = 0;
+    
+                uvs[(last*8)+(currentVertex*6)+4] = 1;
+                uvs[(last*8)+(currentVertex*6)+5] = 1;
+    
+                var n = p1.sub(p0).cross(p2.sub(p0)).multiplyScalar(-1);
+    
+                normals[(last*12)+(currentVertex*9)] = n.x;
+                normals[(last*12)+(currentVertex*9)+1] = n.y;
+                normals[(last*12)+(currentVertex*9)+2] = n.z;
+                
+                normals[(last*12)+(currentVertex*9)+3] = n.x;
+                normals[(last*12)+(currentVertex*9)+4] = n.y;
+                normals[(last*12)+(currentVertex*9)+5] = n.z;
+    
+                normals[(last*12)+(currentVertex*9)+6] = n.x;
+                normals[(last*12)+(currentVertex*9)+7] = n.y;
+                normals[(last*12)+(currentVertex*9)+8] = n.z;
+    
+
+                elements[(last*6)+(currentVertex*3)] = j;
+                elements[(last*6)+(currentVertex*3)+1] = j+2;
+                elements[(last*6)+(currentVertex*3)+2] = j+1;
+    
+
+
+                currentVertex += 1;
+    
+                j+=3;
+    
+            }
+    
+            return [currentVertex,j];
+
+        }
     
         function quaternion_axis_angle(p_in, axis, angle, p_out)
         {
@@ -206,6 +393,8 @@ function OpenCylinder()
             p_out.z = thing.w;
 
         }
+
+        
 
 }
 

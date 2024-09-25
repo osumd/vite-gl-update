@@ -213,6 +213,11 @@ refactor events array into hashmap so that events can be taken out of the event 
 
 # PLOT
 
+  first usage of regular lights what would usage:
+
+    
+    LightsTexture.add ( location, brightness, etc )
+
   fix the settings for the chunk primitive count breaking the chunk coordinate plane
   
   the plot needs to simply be a collection of meshes that can be used in terms of a scene

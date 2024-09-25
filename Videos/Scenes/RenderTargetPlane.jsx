@@ -33,8 +33,7 @@ class RenderTargetPlane
         this.generate_render_target();
         // attach objects to the scene 
 
-        // then render the scene to the texture, every frame
-        this.scene_context.onAnimate.add_event ( this.render_scene_to_render_target.bind(this) );
+        
 
         // plane geometry, the scene material
         this.generate_plane_geometry_material();
@@ -52,6 +51,8 @@ class RenderTargetPlane
     {
         this.scene = scene;
         this.camera = camera;
+        // then render the scene to the texture, every frame
+        this.scene_context.onAnimate.add_event ( this.render_scene_to_render_target.bind(this) );
     }
 
     // Generate the render target texture
@@ -76,7 +77,7 @@ class RenderTargetPlane
 
         this.scene_context.renderer.getClearColor( prev_clear_color );
 
-        this.scene_context.renderer.setClearColor( new THREE.Color(0x0020BA) );
+        this.scene_context.renderer.setClearColor( new THREE.Color(0x000000) );
         this.scene_context.renderer.setRenderTarget( this.renderTarget );
         this.scene_context.renderer.render( this.scene, this.camera );
         this.scene_context.renderer.setRenderTarget(null);
@@ -165,8 +166,6 @@ class RenderTargetPlane
 
         `;
 
-        
-
         this.plane_material = new THREE.ShaderMaterial(
             {
                 vertexShader: vertex_shader,
@@ -185,9 +184,6 @@ class RenderTargetPlane
         this.plane_mesh = new THREE.Mesh ( plane_geometry, this.plane_material );
         this.plane_mesh.scale.set( this.width, this.height, 1.0);
 
-        
-
-        
         this.plane_mesh.position.set(this.center.x, this.center.y, this.center.z);
 
         this.scene_context.scene.add ( this.plane_mesh );
@@ -200,9 +196,23 @@ class RenderTargetPlane
         this.scene.add ( mesh );
     }
 
-    
+    set_texture( render_target )
+    {
+
+        
+        this.plane_mesh.material.uniforms.scene_texture_resolution.value = new THREE.Vector2(render_target.width, render_target.height);
+        this.plane_mesh.material.uniforms.scene_texture.value = render_target.texture;
 
 
+    }
+
+    set_position_scale ( center, width, height )
+    {
+        this.plane_mesh.scale.set( width, height, 1.0);
+
+        this.plane_mesh.position.set(center.x, center.y, center.z);
+
+    }
 
 
 };

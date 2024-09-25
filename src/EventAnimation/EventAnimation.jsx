@@ -21,6 +21,7 @@ class EventSystem extends React.Component{
         this.events_time_end = 0;
 
         this.timeline_head = 0;
+        this.prev_timeline_head = 0;
 
         this.interval_tree = new interval_segment_tree();
         
@@ -38,6 +39,11 @@ class EventSystem extends React.Component{
             "scale":this.update_object_scale.bind(this), 
             "lookat":this.update_object_lookat.bind(this),
             "orthoview":this.update_object_orthoview.bind(this),
+            "rotate_view":this.update_object_rotateview.bind(this),
+            "position_look":this.update_object_position_look.bind(this),
+            "custom" : this.update_object_custom.bind(this),
+            "execute" : this.update_execute.bind(this),
+            "change" : this.update_change.bind(this),
         };
 
         // Setable attributes
@@ -54,6 +60,11 @@ class EventSystem extends React.Component{
             "lookat":this.get_object_lookat.bind(this),
             "orthoview":this.get_object_orthoview.bind(this),
             "dispose":this.get_animation_group_dispose.bind(this),
+            "rotate_view":this.get_object_rotateview.bind(this),
+            "position_look":this.get_object_position_look.bind(this),
+            "custom" : this.get_object_custom.bind(this),
+            "execute" : this.get_execute.bind(this),
+            "change" : this.get_change.bind(this),
         };
 
 
@@ -147,14 +158,14 @@ class EventSystem extends React.Component{
             
             if(arg.to == undefined)
             {
-                
+                console.log("EVENT_SYSTEM: to!!");
                 continue;
             }
             
             //
             if(arg.attribute == undefined)
             {
-                
+                console.log("EVENT_SYSTEM: attr!");
                 continue;
             }
 
@@ -234,8 +245,6 @@ class EventSystem extends React.Component{
 
         return this.events[ this.events.length-1 ];
         
-        
-    
         
     }
     
@@ -381,7 +390,7 @@ class EventSystem extends React.Component{
             //console.log("hello");
             //console.log ( head.object.materials );
 
-            return head.object.materials[0].opacity;
+            return head.object.materials[head.object.object_index].opacity;
 
         }else if ( head.isText == true )
         {
@@ -401,7 +410,7 @@ class EventSystem extends React.Component{
             let easing = attribute.easing;
             let current_opacity = this.interpolation_methods[easing](attribute.from, attribute.to, t );
 
-            head.object.instanced_mesh.material.uniforms.opacities.value[ 0 ] = current_opacity;
+            head.object.instanced_mesh.material.uniforms.opacities.value[ head.object.object_index ] = current_opacity;
             head.object.instanced_mesh.material.uniforms.needsUpdate = true;
         }
         else if ( head.isText == true )
@@ -454,8 +463,6 @@ class EventSystem extends React.Component{
             let scale = new THREE.Vector3();
 
             let instanceMatrix = new THREE.Matrix4();
-
-
 
             head.object.instanced_mesh.getMatrixAt(head.object.object_index, instanceMatrix);
             instanceMatrix.decompose(position, quaternion, scale);
@@ -860,7 +867,24 @@ class EventSystem extends React.Component{
     //subset for the look at position
     get_object_lookat({head, attribute})
     {
-        if(head.isRef == true)
+
+        if ( head.object.tag_type == "instanced_mesh")
+        {
+            
+            let instance_matrix = new THREE.Matrix4();
+
+            head.object.instanced_mesh.getMatrixAt(head.object.object_index, instance_matrix);
+            
+            let position = new THREE.Vector3(0.0, 0.0,0.0);
+            let quaternion = new THREE.Quaternion(0.0, 0.0,0.0, 0.0);
+            let scale = new THREE.Vector3(1.0, 1.0,1.0);
+    
+            instance_matrix.decompose(position, quaternion, scale);
+
+            return quaternion;
+
+        }
+        else if(head.isRef == true)
         {
         
             return head.object.current.quaternion.clone();
@@ -868,7 +892,7 @@ class EventSystem extends React.Component{
         {
 
             
-            let forwardVector = new THREE.Vector3(0, 0, -1);
+            let forwardVector = new THREE.Vector3(0, 0, 1);
             forwardVector.applyQuaternion(head.object.quaternion.clone()).normalize();
 
             let current_position = this.get_object_position({ head, attribute });
@@ -899,6 +923,8 @@ class EventSystem extends React.Component{
 
             attribute.to = q.clone();
 
+
+
             return head.object.quaternion.clone();
 
 
@@ -909,8 +935,31 @@ class EventSystem extends React.Component{
     update_object_lookat({head, attribute, t})
     {
 
+        if ( head.object.tag_type == "instanced_mesh")
+        {
+            
+            let instance_matrix = new THREE.Matrix4();
 
-        if(head.isRef == true)
+            head.object.instanced_mesh.getMatrixAt(head.object.object_index, instance_matrix);
+        
+            let position = new THREE.Vector3(0.0, 0.0,0.0);
+            let quaternion = new THREE.Quaternion(0.0, 0.0,0.0, 0.0);
+            let scale = new THREE.Vector3(1.0, 1.0,1.0);
+
+            instance_matrix.decompose(position, quaternion, scale);
+
+            quaternion.slerpQuaternions(attribute.from.clone(),attribute.to.clone(), t);
+
+            
+
+            instance_matrix.compose(position, quaternion, scale);
+
+            head.object.instance_mesh.setMatrixAt(head.object.object_index, instance_matrix);
+            head.object.instance_mesh.instanceMatrix.needsUpdate = true;
+
+
+        }
+        else if(head.isRef == true)
         {
 
         }else
@@ -922,12 +971,135 @@ class EventSystem extends React.Component{
             //head.object.quaternion.slerp(attribute.to, t);
 
             //console.log(t);
-
+            
             /* head.object.rotation.copy(new THREE.Euler().setFromQuaternion(sQ)); */
-            head.object.quaternion.slerpQuaternions(attribute.from.clone(),attribute.to.clone(), t);
+            head.object.quaternion.slerpQuaternions(attribute.from.clone(), attribute.to.clone(), t);
         }
     
     
+    }
+
+    get_object_rotateview({head,attribute})
+    {
+
+        let dx = head.object.position.clone().sub ( attribute.target.clone() ).normalize();
+
+        let dxxz = new THREE.Vector2( dx.x, dx.z );
+
+        let a = Math.atan2( dxxz.y, dxxz.x );
+
+
+
+        return a;
+
+    }
+
+    update_object_rotateview({head,attribute,t})
+    {
+
+
+        //set easing from attribute arg
+        let easing = attribute.easing;
+        let theta = this.interpolation_methods[easing]( attribute.from, attribute.to, t );
+
+        console.log("theta, t", theta, t);
+
+        let v = new THREE.Vector3( Math.cos(theta), 1, Math.sin(theta) ).multiplyScalar(attribute.radius);
+
+        let p = attribute.target.clone().add(v);
+        head.object.position.set( p.x, p.y, p.z );
+
+        let object_forward = new THREE.Vector3(0,0,1).applyQuaternion( head.object.quaternion.clone() ).normalize();
+
+        let object_position = head.object.position.clone();
+        let target_position = attribute.target.clone();
+
+        let look = target_position.clone().sub(object_position).normalize();
+
+        let euler = new THREE.Euler();
+        euler.setFromQuaternion(head.object.quaternion, 'YXZ'); // Adjust order if necessary
+
+        // Calculate rotation angles
+        let pitch = Math.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z));
+        let yaw = Math.atan2(-look.x, -look.z);
+
+        // Set Euler angles
+        euler.set(pitch, yaw, 0, 'YXZ'); // Adjust order if necessary
+
+        // Convert Euler angles back to quaternion
+        let q = new THREE.Quaternion().setFromEuler(euler);
+
+        head.object.quaternion.set(q.x, q.y, q.z, q.w);
+
+
+    }
+
+    get_object_position_look({head,attribute})
+    {
+        return this.get_object_position({head: head, attribute: attribute});
+    }
+
+    update_object_position_look({head,attribute,t})
+    {
+
+        this.update_object_position( {head:head, attribute: attribute, t});
+
+        // Then look at.
+        let object_position = head.object.position.clone();
+        let target_position = attribute.target.clone();
+
+        let look = target_position.clone().sub(object_position).normalize();
+
+        let euler = new THREE.Euler();
+        euler.setFromQuaternion(head.object.quaternion, 'YXZ'); // Adjust order if necessary
+
+        // Calculate rotation angles
+        let pitch = Math.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z));
+        let yaw = Math.atan2(-look.x, -look.z);
+
+        // Set Euler angles
+        euler.set(pitch, yaw, 0, 'YXZ'); // Adjust order if necessary
+
+        // Convert Euler angles back to quaternion
+        let q = new THREE.Quaternion().setFromEuler(euler);
+
+        head.object.quaternion.set(q.x, q.y, q.z, q.w);
+
+    }
+
+    get_object_custom({head,attribute})
+    {
+        return head.object[0].value;
+    }
+
+    update_object_custom({head, attribute, t})
+    {
+        let easing = attribute.easing;
+
+        let c = this.interpolation_methods[easing](attribute.from, attribute.to, t);
+
+        head.object[0].value = c;
+    }
+
+    get_execute({head, attribute})
+    {
+        head.object( attribute.parameters );
+        return 0;
+    }
+
+    update_execute ({head, attribute, t})
+    {
+        return 0;
+    }
+
+    get_change ( {head, attribute} )
+    {
+        console.log(head.object);
+    }
+
+    update_change ( {head, attribute } )
+    {
+
     }
 
     // Sets attribute toQuat to rotate to ortho plane, and position to distance about object.
@@ -1036,8 +1208,8 @@ class EventSystem extends React.Component{
                 let t = (this.timeline_head - event_head.start) / event_head.duration;
                 //console.log("UPDATE_EVENTS: attribute", event_attributes);
 
-              //console.log(`i: ${i} head: ${this.timeline_head} start: ${event_head.start} end: ${event_head.duration} t: ${t}`);
-
+                //console.log(`i: ${i} head: ${this.timeline_head} start: ${event_head.start} end: ${event_head.duration} t: ${t}`);
+                
                 for(let attribute_index = 0; attribute_index < event_attributes.length; attribute_index++)
                 {
                     
@@ -1051,7 +1223,7 @@ class EventSystem extends React.Component{
                     {
                         
                         event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
-
+                        
                         event_attributes[attribute_index].init = true;
                     }
 
@@ -1082,8 +1254,20 @@ class EventSystem extends React.Component{
         {
             //console.log(`EVENT_ANIM: ${elapsed_time}`);
             //console.log(`EVENT_ANIM: Pre time ${this.timeline_head}`);
+
+
             this.timeline_head += elapsed_time;
-            //console.log(`EVENT_ANIM: Post time ${this.timeline_head}`);
+
+            if ( Math.floor(this.timeline_head) > Math.floor(this.prev_timeline_head ) )
+            {
+                
+                this.timeline_head = Math.floor(this.timeline_head);
+
+            }
+
+
+
+            this.prev_timeline_head = this.timeline_head;
 
             this.update_events();
         }
@@ -1131,20 +1315,12 @@ class EventSystem extends React.Component{
             let attribute_title = event_attributes[attribute_index].attribute;
 
             //console.log(event_attributes[attribute_index].init)
-
+            console.log( attribute_title );
             //if this is the first time the event attributes was encountered then set the init
-            if(event_attributes[attribute_index].init == false && this.retrievable_attributes[attribute_title] != undefined)
+            if ( this.animateable_attributes[attribute_title] != undefined )
             {
-                
-                event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
-
-                event_attributes[attribute_index].init = true;
-            }else if ( event_attributes[attribute_index].init == true && this.retrievable_attributes[attribute_title] != undefined )
-            {
-
-                
-                event_attributes[attribute_index].from  = this.retrievable_attributes[attribute_title]({head:event_head, attribute:event_attributes[attribute_index]});
-                event_attributes[attribute_index].init = true;
+                console.log("true");
+                this.animateable_attributes[attribute_title]( {head: event_head, attribute: event_attributes[attribute_index], t: 0} );
             }
 
             
@@ -1161,6 +1337,13 @@ class EventSystem extends React.Component{
             console.log ( object );
             //  If option istext, primitive
             this.add_event ( {object: object, duration: duration, isText: true }, { attribute: "opacity", from: from, to: to} );
+            return;
+        }
+
+        if ( object.host != undefined )
+        {
+            let added_event = this.add_event ( {object: object.host, duration: duration }, { attribute: "opacity", from: from, to: to} );
+            this.init_event_attributes( added_event );
             return;
         }
 
@@ -1197,8 +1380,6 @@ class EventSystem extends React.Component{
         }
 
         
-
-        
         //  If option istext, primitive
         let added_event = this.add_event ( {object: object, duration: duration }, { attribute: "opacity", from: from, to: to} );
 
@@ -1224,7 +1405,114 @@ class EventSystem extends React.Component{
 
             }
 
+        }else
+        {
+            this.add_event ( {object: object, duration: duration }, { attribute: "position", from: from, to: to} );
+
         }
+    }
+
+    lookat ( object, duration, target )
+    {
+
+        if ( target.tag_type == "instanced_mesh" )
+        {
+
+            
+
+            let object_matrix = new THREE.Matrix4();
+
+            target.instanced_mesh.getMatrixAt( target.object_index, object_matrix);
+
+            let position = new THREE.Vector3(0,0,0);
+            let quat = new THREE.Quaternion();
+            let scale = new THREE.Vector3(0,0,0);
+
+            object_matrix.decompose( position, quat, scale );
+
+            
+
+            let added_event = this.add_event ( {object: object, duration: duration }, { attribute: "lookat", to:position} );
+
+        }else
+        {
+            //  If option istext, primitive
+            let added_event = this.add_event ( {object: object, duration: duration }, { attribute: "lookat", to:target} );
+        }
+        
+    }
+
+    rotate_view ( object, duration, target, degrees )
+    {
+        if ( target.tag_type == "instanced_mesh" )
+        {
+
+            let object_matrix = new THREE.Matrix4();
+
+            target.instanced_mesh.getMatrixAt( target.object_index, object_matrix);
+
+            let position = new THREE.Vector3(0,0,0);
+            let quat = new THREE.Quaternion();
+            let scale = new THREE.Vector3(0,0,0);
+
+            object_matrix.decompose( position, quat, scale );
+
+            let radius = position.clone().sub( object.position.clone() ).length();
+
+
+            let dx = object.position.clone().sub ( position.clone() ).normalize();
+
+            let dxxz = new THREE.Vector2( dx.x, dx.z );
+            let a = Math.atan2( dxxz.y, dxxz.x );
+
+            let v = new THREE.Vector3( Math.cos(a), 1, Math.sin(a) ).multiplyScalar(radius);
+            let p = position.clone().add(v);
+
+            this.add_event({object: object, duration: 1},{ attribute:"position_look", to: p, target: position });
+
+            let added_event = this.add_event ( {object: object, duration: duration }, { attribute: "rotate_view", to: (degrees*Math.PI)/180, target: position, radius: radius} );
+
+        }else
+        {
+
+        }
+
+    }
+
+    custom ( value, duration, from, to, preset="false" )
+    {
+
+        if ( preset == "true" )
+        {
+         
+
+            let added_event = this.add_event({object: value, duration: duration}, {attribute:"custom", from: from, to: to});
+            this.init_event_attributes( added_event );
+            
+            
+
+        }else {
+            this.add_event({object: value, duration: duration}, {attribute:"custom", from: from, to: to});
+        }
+
+        
+
+    }
+
+
+    
+
+    // Should simply execute a function withought passing any t-values
+    execute ( func, parameters )
+    {
+
+        this.add_event({ object: func, duration: 1 }, {attribute:"execute", to: 1, parameters: parameters})
+
+    }
+
+    change ( previous_value, new_value )
+    {
+        this.add_event({object: previous_value, duration: 1}, {attribute: "change", to: new_value});
     }
 
 };

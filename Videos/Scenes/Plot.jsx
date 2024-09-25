@@ -3,6 +3,8 @@ import * as THREE from 'three';
 
 // XY Sphere | normal 
 import { XYSphere } from '../../Primitives/PrimitiveSphere';
+import { ElementSphere } from '../../Primitives/ElementSphere.jsx';
+import { OpenCylinder } from '../../Primitives/PrimitiveCylinder.jsx';
 
 // Instanced mesh comment.
 import { InstancedMesh } from '../../Primitives/InstancedMesh';
@@ -10,6 +12,7 @@ import { InstancedMesh } from '../../Primitives/InstancedMesh';
 // Import the Chunk Coordinate Plane
 import { ChunkCoordinatePlane } from '../../Videos/Scenes/ChunkCoordinatePlane.jsx';
 
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 // Used exclusively for event animation systems. 
 class InstanceReference
 {
@@ -32,7 +35,7 @@ class Plot
 {
 
     // Pass it the global scene context.
-    constructor( scene_context, basis_x = new THREE.Vector3(1,0,0), basis_y = new THREE.Vector3(0,1,0), basis_z = new THREE.Vector3(0,0,-1), origin = new THREE.Vector3(0,1,0)  )
+    constructor( scene_context, basis_x = new THREE.Vector3(1,0,0), basis_y = new THREE.Vector3(0,1,0), basis_z = new THREE.Vector3(0,0,-1), origin = new THREE.Vector3(0,0,0)  )
     {
 
 
@@ -50,13 +53,26 @@ class Plot
         this.camera.position.z = 5;
         this.camera.position.y = 2;
 
+        const controls = new OrbitControls(this.camera, this.scene_context.renderer.domElement);
+            //controls.target = new THREE.Vector3(0,0,0);
+
+        // Default lights texture vector.
+
         // Default parameters,  
-        this.sphere_mesh = new InstancedMesh ( scene_context, new XYSphere({radius:1.0, widthSegments:10, heightSegments:10}) );
+        this.sphere_mesh = new InstancedMesh ( scene_context, new ElementSphere(3.0) );
+        this.line_mesh = new InstancedMesh ( scene_context, new OpenCylinder() );
+        this.plane_mesh = new InstancedMesh ( scene_context, new THREE.PlaneGeometry(1,1));
 
         // Assign the scene of the sphere mesh.
         this.sphere_mesh.assign_scene ( this.scene );
+        this.line_mesh.assign_scene ( this.scene );
+        this.plane_mesh.assign_scene ( this.scene );
+
 
         this.host = undefined;
+
+        // Store some more map type shit
+        
 
     }
 
@@ -101,17 +117,60 @@ class Plot
         this.scene.add ( chunk_plane.return_mesh() );
     }
 
-    fade_in_point ( )
+    infinity_plane ( )
+    {
+        let chunk_plane = new ChunkCoordinatePlane ( this.scene_context, this.origin );
+        this.scene.add ( chunk_plane.return_mesh() );
+    }
+
+    fade_plane ( location, width, height, normal )
     {
 
-        let point_id = this.sphere_mesh.push ( );
+        let axis = new THREE.Vector3(0,0,1).cross( normal ).normalize();
+        let angle = Math.acos ( new THREE.Vector3(0,0,1).dot ( normal.clone().normalize() ) );
+
+        let plane_id = this.plane_mesh.push ( location, new THREE.Vector3(width, height, 1), new THREE.Quaternion().setFromAxisAngle(axis, angle) );
+
+        let plane_reference = new InstanceReference ( this.plane_mesh.InstancedMesh, plane_id );
+
+        this.scene_context.animate.opacity( plane_reference, 1, 0, 1);
+        
+    }
+
+    fade_point ( location )
+    {
+
+        let point_id = this.sphere_mesh.push ( location, new THREE.Vector3(0.1,0.1,0.1) );
 
         let point_reference = new InstanceReference ( this.sphere_mesh.InstancedMesh, point_id );
 
-        this.scene_context.eventSystem.add_event ( {object: point_reference, duration: 1}, { attribute: "opacity", from: 0.0, to: 1.0} );
+        //this.scene_context.animate.add_event ( {object: point_reference, duration: 1}, { attribute: "opacity", from: 0.0, to: 1.0} );
+
+        this.scene_context.animate.opacity( point_reference, 1, 0, 1);
 
         return point_reference;
 
+    }
+
+    add_point(location)
+    {
+        let point_id = this.sphere_mesh.push ( location, new THREE.Vector3(0.1,0.1,0.1) );
+        let point_reference = new InstanceReference ( this.sphere_mesh.InstancedMesh, point_id );
+
+        return point_reference;
+    }
+
+    add_line ( start, end )
+    {
+        // Generate the axis
+        let axis = end.clone().sub(start).normalize();
+        let axis_length = end.clone().sub(start).length();
+        let default_axis = new THREE.Vector3(0,1,0);
+        let angle = -Math.acos( default_axis.dot(axis) );
+        let cross_axis = axis.clone().cross(default_axis).normalize();
+
+
+        this.line_mesh.push( start, new THREE.Vector3(0.1,axis_length,0.1), new THREE.Quaternion().setFromAxisAngle( cross_axis, angle)  );
     }
 
     // Register the material of the object hosting the plot

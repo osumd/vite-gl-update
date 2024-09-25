@@ -25,11 +25,14 @@ class ReusableText extends React.Component {
 
         if ( this.useable_text_objects.length > 0)
         {
-            console.log("REU_TEXT: Found reusable text object!");
+            //console.log("REU_TEXT: Found reusable text object!");
             return this.useable_text_objects.pop();
         }else
         {
-            this.text_objects.push( new Text() );
+            let t = new Text();
+            t.sync();
+
+            this.text_objects.push( t );
 
 
             return this.text_objects.length-1;

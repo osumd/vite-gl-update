@@ -36,7 +36,10 @@ class MathParserNode
         this.superscriptContent = "";
         this.subscriptContent = "";
 
-        
+        this.local_id_map = {
+            all_ids : []
+
+        };
 
 
     }
@@ -91,7 +94,7 @@ class MathDecoder
             equals_count: 0,
 
             // Section for tracking equations
-            equation0 : {
+            eq0 : {
                 equals_flag: "lhs",
                 lhs: {
                     text_count: 0,
@@ -127,6 +130,8 @@ class MathDecoder
         // Store information regarding the maximum font height for line skipping
         this.maximum_line_height = 0.0;
         this.minimum_line_height = 1.0;
+
+
         
         
     }
@@ -146,39 +151,7 @@ class MathDecoder
         // Set by what the position of the current token is.
         this.current_base_position = [0,0,0];
 
-        // 
-        this.end_current_equation();
-    }
-
-    // Resets the id map
-    reset_id_map ( )
-    {
-        this.id_map = {
-            text_count: 0,
-            frac_count: 0,
-            equals_count: 0,
-
-            // Section for tracking equations
-            equation0 : {
-                equals_flag: "lhs",
-                lhs: {
-                    text_count: 0,
-                    frac_count: 0,
-                    all_ids: []
-                },
-                rhs: {
-                    text_count: 0,
-                    frac_count: 0,
-                    all_ids: []
-                },
-                all_ids: []
-
-            },
-            equation_tail: 0,
-
-            all_ids: []
-        };
-
+        
     }
 
     // Add equation id's either text, frag operators etc.
@@ -189,53 +162,96 @@ class MathDecoder
         // Support local inclusion.
 
         // Get the flag string from the id map for accessing.
-        let flag_string = this.id_map[`equation${this.id_map.equation_tail}`].equals_flag;
+        let flag_string = this.id_map[`eq${this.id_map.equation_tail}`].equals_flag;
 
         // Get the text count
-        let text_count = this.id_map[`equation${this.id_map.equation_tail}`][flag_string].text_count;
+        let text_count = this.id_map[`eq${this.id_map.equation_tail}`][flag_string].text_count;
 
-        this.id_map[`equation${this.id_map.equation_tail}`][flag_string][ `text${text_count}`] = id;
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string][ `text${text_count}`] = id;
 
-        this.id_map[`equation${this.id_map.equation_tail}`][flag_string].text_count++;
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string].text_count++;
 
-        this.id_map[`equation${this.id_map.equation_tail}`][flag_string].all_ids.push ( id );
-        this.id_map[`equation${this.id_map.equation_tail}`].all_ids.push ( id );
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string].all_ids.push ( id );
+        this.id_map[`eq${this.id_map.equation_tail}`].all_ids.push ( id );
 
 
     }
 
-    // Function which closes the current equation id and submits
-    end_current_equation ( )
+    add_equation_equals_id ( id )
+    {
+        
+        let flag_string = this.id_map[`eq${this.id_map.equation_tail}`].equals_flag;
+
+        // Get the text count
+        let equals_count = this.id_map[`eq${this.id_map.equation_tail}`][flag_string].equals_count;
+
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string][ `text${equals_count}`] = id;
+
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string].equals_count++;
+
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string].all_ids.push ( id );
+        this.id_map[`eq${this.id_map.equation_tail}`].all_ids.push ( id );
+    }
+
+    add_equation_subscript_id ( id )
     {
 
-        let current_equation = `equation${this.id_map.equation_tail}`;
+        // Support local subscript equation ids
+
+        let flag_string = this.id_map[`eq${this.id_map.equation_tail}`].equals_flag;
+
+        let subscript_count = this.id_map[`eq${this.id_map.equation_tail}`][flag_string].subscript_count;
+
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string][`subscript${subscript_count}`] = id;
+
+        this.id_map[`eq${this.id_map.equation_tail}`][flag_string].all_ids.push(id);
+        this.id_map[`eq${this.id_map.equation_tail}`].all_ids.push(id);
+
+    }
+    
+
+    // Function which closes the current equation id and submits
+    end_current_equation ( last_equation_number )
+    {
+
+        let current_equation = `eq${this.id_map.equation_tail}`;
+
+        // Store the last equation number
+        last_equation_number[0] = this.id_map.equation_tail;
 
         // If the current equation is empty then do nothing else, increment equation status
-
-        if ( this.id_map[current_equation].lhs.all_ids.length != 0 && this.id_map[current_equation].rhs.all_ids.length == 0 )
+        if ( this.id_map[current_equation].lhs.all_ids.length == 0 && this.id_map[current_equation].rhs.all_ids.length == 0 )
+        {
+            
+        }
+        else if ( this.id_map[current_equation].lhs.all_ids.length != 0 && this.id_map[current_equation].rhs.all_ids.length == 0 )
         {
             this.id_map[current_equation] = {
                 equals_flag: "lhs",
-                lhs : { text_count: 0, frac_count: 0, all_ids: [] },
-                rhs : { text_count: 0, frac_count: 0, all_ids: [] },
+                lhs : { text_count: 0, frac_count: 0, subscript_count:0, all_ids: [] },
+                rhs : { text_count: 0, frac_count: 0, subscript_count:0, all_ids: [] },
                 all_ids: []
             };
 
         }else
         {
+
+            //console.log("got to big end this shit");
+
             // Other wise increment the equation tail and create a new equation.
             this.id_map.equation_tail += 1;
 
-            let next_equation = `equation${this.id_map.equation_tail}`;
-
+            let next_equation = `eq${this.id_map.equation_tail}`;
 
             this.id_map[next_equation] = {
                 equals_flag: "lhs",
-                lhs : { text_count: 0, frac_count: 0, all_ids: [] },
-                rhs : { text_count: 0, frac_count: 0, all_ids: [] },
+                lhs : { text_count: 0, frac_count: 0, subscript_count:0, all_ids: [] },
+                rhs : { text_count: 0, frac_count: 0, subscript_count:0, all_ids: [] },
                 all_ids: []
             };
         }
+
+
 
 
     }
@@ -278,6 +294,8 @@ class MathDecoder
             this.id_map[`equals${equals_count}`] = id;
         }
 
+        this.add_equation_equals_id( id );
+
     }
 
     // Could refactor to just count the subscripts/supercripts to make it easier to find but could then not find the sub/super based on text alone. [ preffered ]
@@ -301,6 +319,8 @@ class MathDecoder
 
         }
 
+        this.add_equation_subscript_id( id );
+
 
        
     }
@@ -308,6 +328,7 @@ class MathDecoder
     add_global_id(id)
     {
         this.id_map.all_ids.push(id);
+        this.local_id_map.all_ids.push(id);
     }
 
     // Increment the text id after subscripts and superscripts
@@ -333,6 +354,17 @@ class MathDecoder
         }
     }
 
+
+    increment_subscript_id ( )
+    {
+        if( this.current_group_id != "")
+        {
+            this.id_map[this.current_group_id].subscript_count++;
+        }else{
+            this.id_map.subscript_count++;
+        }
+    }
+    
     // Use subroutines for appending ids for the frac operator
     add_frac_id(numerator, denominator)
     {
@@ -465,6 +497,7 @@ class MathDecoder
             // Addd the sub script to the id map.
             this.add_subscript_id(subscript_text);
             this.add_global_id(subscript_text);
+            this.increment_subscript_id ( );
 
         }
 
@@ -580,8 +613,10 @@ class MathDecoder
         let text = this.scene_context.reusable_text.get_new_text_id();
 
         this.add_equals_id( text );
-        this.increment_equals_id ( );
         this.add_global_id ( text );
+        
+        this.increment_equals_id ( );
+        
         
         // Generate base x and base y [ verify ]
         let base_x = this.baseline_cursor[0]*(this.baseline_vectors[0][0]) + this.baseline_cursor[1]*(this.baseline_vectors[1][0]) + this.current_base_position[0];
@@ -606,16 +641,71 @@ class MathDecoder
         
         this.scene_context.scene.add(this.scene_context.reusable_text.text_objects[text]);
 
-        this.id_map[ `equation${this.id_map.equation_tail}`].equals_flag = "rhs";
+        this.id_map[ `eq${this.id_map.equation_tail}`].equals_flag = "rhs";
     }
 
+
+    // This function will assimilate relevant values from the equation ast into the id_map reference
+    handle_ast_assimilation ( ast, id_map_reference, last_equation_number )
+    {
+
+        if ( ast == undefined )
+        {
+            return;
+        }
+
+        id_map_reference[`eq${last_equation_number}`].ast = ast;
+        id_map_reference[`eq${last_equation_number}`].input = ast.input;
+        id_map_reference[`eq${last_equation_number}`].output = ast.output;
+
+    }
+
+    //  This handles all things related to append export tokens to the tokens array
+    handle_equation_export ( export_token, id_map_reference, equation_export_tokens, last_equation_number )
+    {
+
+        let current_equation_number = id_map_reference.equation_tail;
+
+        if ( last_equation_number != current_equation_number )
+        {
+
+            //console.log("the number has been changed, return back to go: ", last_equation_number);
+
+            // Convert tokens store the ast and reset the array.
+            let export_equation_converter = new MathExpressionConverter( );
+
+            let ast = export_equation_converter.convert ( equation_export_tokens[0] );
+                    
+            this.handle_ast_assimilation ( ast, id_map_reference, last_equation_number )
+
+            equation_export_tokens[0] = [ ];
+
+        }
+        else if ( export_token != undefined )
+        {
+            equation_export_tokens[0].push ( export_token );
+        }
+
+    }
 
     // While decoding a compartment of export tokens should be being compiled, then when an equation is ended, these export tokens
     // should be converted to the desired ast_tree
 
-    decode(export_tokens, id_map_reference)
+    // Accepts some equation_export_tokens used to store the intermediate export tokens of a based equation.
+    decode( export_tokens, id_map_reference, equation_export_tokens )
     {
 
+        // Create a sub module for handling equation exports
+        let last_equation_number = id_map_reference.equation_tail;
+        //console.log( "last_equation_number", last_equation_number );
+
+        // Store some local id for this particular decoding.
+        this.local_id_map = {
+            all_ids : []
+
+        };
+
+        // Reference a global id map
         this.id_map = id_map_reference;
 
         // Reset the id array, helpful for disposing of text ids in bulk in an animation group
@@ -623,6 +713,8 @@ class MathDecoder
 
         for(let i = 0 ; i < export_tokens.length; i++)
         {
+             
+
             // Let the export token exists
             let export_token = export_tokens[i];
 
@@ -673,8 +765,13 @@ class MathDecoder
                 this.maximum_line_height = 0;
 
                 // And end the current equation
-                //this.end_current_equation ( );
-                console.log("new equation?");
+                this.end_current_equation ( [last_equation_number] );
+
+                // the current equation has changed then deal with that
+                this.handle_equation_export ( undefined, id_map_reference, equation_export_tokens, last_equation_number );
+                
+                last_equation_number = id_map_reference.equation_tail;
+
             }
             else if ( export_token.textContent != "" )
             {
@@ -692,11 +789,27 @@ class MathDecoder
             this.dimension_map.total_length = Math.max ( this.dimension_map.total_length, this.baseline_cursor[0] );
             this.dimension_map.total_height = Math.max ( this.dimension_map.total_height, (-this.baseline_cursor[1]) + this.maximum_line_height*0.8 );
 
+            // Appends the token to the equation export tokens, if the current equation has changed then deal with that
+            this.handle_equation_export ( export_token, id_map_reference, equation_export_tokens, last_equation_number );
+
         }
 
+        // Blanket reset that is not good.
         this.reset();
 
-        return this.dimension_map;
+
+        
+        // End the current equation
+        this.end_current_equation( [last_equation_number] );
+
+        //console.log("ending the big boy equation", last_equation_number);
+
+        // the current equation has changed then deal with that
+        this.handle_equation_export ( undefined, id_map_reference, equation_export_tokens, last_equation_number );
+
+
+
+        return [ this.dimension_map, this.local_id_map ];
 
     }
 
@@ -725,6 +838,9 @@ class MathExpressionNode
 
         this.operator = "";
         this.children = [];
+
+        this.input = 0;
+        this.output = 0;
 
     }
 
@@ -766,6 +882,20 @@ class MathExpressionNode
         this.node_value_type = node.node_value_type;
 
         this.operator = node.operator;
+
+    }
+
+    // Gets the value based on the type of node it is
+    get_value ( )
+    {
+        if ( this.node_value_type == "alphabetic" )
+        {
+            return this.symbolic_value;
+        }
+        if ( this.node_value_type == "numeric" )
+        {
+            return this.numeric_value;
+        }
 
     }
 
@@ -872,6 +1002,11 @@ class MathExpressionConverter
     is_alphabetic ( sample_char )
     {
 
+        if ( sample_char == undefined )
+        {
+            return false;
+        }
+
         let char_code = sample_char.charCodeAt(0);
         if  ( char_code >= 65 && char_code <= 89  || char_code >= 97 && char_code <= 122 )
         {
@@ -886,6 +1021,11 @@ class MathExpressionConverter
     // boolean value to check if a char is a numeric character
     is_numeric ( sample_char )
     {
+
+        if ( sample_char == undefined )
+        {
+            return false;
+        }
 
         let char_code = sample_char.charCodeAt(0);
         if  ( char_code >= 48 && char_code <= 57  || char_code == 46 )
@@ -905,7 +1045,7 @@ class MathExpressionConverter
         
         // While the token at the expression index is not an operator, a space, or a numerical value.
         // Get the current token from the text expression
-        var current_token = text_expression[ text_expression_index ];
+        var current_token = text_expression[ text_expression_index[0] ];
 
         // Create a new operand node representing the current symbolic operand.
         let operand_node = new MathExpressionNode ( );
@@ -918,32 +1058,32 @@ class MathExpressionConverter
         operand_node.symbolic_value += current_token;
 
         // Increment the text expression index.
-        text_expression_index += 1;
+        text_expression_index[0] += 1;
 
-        if ( text_expression_index < text_expression_length )
+        if ( text_expression_index[0] < text_expression_length )
         {
             
             // Set the current token to the next incremented value
-            current_token = text_expression[ text_expression_index ];
+            current_token = text_expression[ text_expression_index[0] ];
         }
         
 
-        while ( this.is_alphabetic ( current_token ) && text_expression_index < text_expression_length )
+        while ( this.is_alphabetic ( current_token ) && text_expression_index[0] < text_expression_length )
         {
             
             // Add the current token to the symbolic value
             operand_node.symbolic_value += current_token;
 
             // Increment the text expression index.
-            text_expression_index += 1;
+            text_expression_index[0] += 1;
 
             // Set the current token to the next incremented value
-            current_token = text_expression[ text_expression_index ];
+            current_token = text_expression[ text_expression_index[0] ];
 
         }
 
         // I must of designed this incorrectly because this is not good, but it must be done.
-        text_expression_index -= 1;
+        text_expression_index[0] -= 1;
 
         // Push the operand node onto the operand stack.
         operand_stack[0].push ( operand_node ); 
@@ -956,7 +1096,7 @@ class MathExpressionConverter
         
         // While the token at the expression index is not an operator, a space, or a numerical value.
         // Get the current token from the text expression
-        var current_token = text_expression[ text_expression_index ];
+        var current_token = text_expression[ text_expression_index[0] ];
 
         // Create a new operand node representing the current symbolic operand.
         let operand_node = new MathExpressionNode ( );
@@ -968,33 +1108,33 @@ class MathExpressionConverter
         temporary_value += current_token;
 
         // Increment the text expression index.
-        text_expression_index += 1;
+        text_expression_index[0] += 1;
 
-        if ( text_expression_index < text_expression_length-1 )
+        if ( text_expression_index[0] < text_expression_length )
         {
-
             // Set the current token to the next incremented value
-            current_token = text_expression[ text_expression_index ];
+            current_token = text_expression[ text_expression_index[0] ];
+
         }
 
 
-        while ( this.is_numeric ( current_token ) && text_expression_index < text_expression_length )
+        while ( this.is_numeric ( current_token ) && text_expression_index[0] < text_expression_length )
         {
             
-
-
             // Add the current token to the symbolic value
             temporary_value += current_token;
 
             // Increment the text expression index.
-            text_expression_index += 1;
+            text_expression_index[0] += 1;
 
             // Set the current token to the next incremented value
             current_token = text_expression[ text_expression_index ];
         }
 
         // I must of designed this incorrectly because this is not good, but it must be done.
-        text_expression_index -= 1;
+        text_expression_index[0] -= 1;
+
+    
 
         // After that parseFloat from string.
         operand_node.set_numeric_value_node( parseFloat ( temporary_value ) );
@@ -1216,9 +1356,13 @@ class MathExpressionConverter
 
         // Get the text context.
 
+        //console.log("text_expression", token.textContent);
+
         // Set a cursor value representing the current text expression index
-        let text_expression_index = 0;
+        let text_expression_index = [0];
         let text_expression_length = token.textContent.length;
+
+        //console.log( "token_text_content", token.textContent, token.textContent.length );
 
         // iterate through the text content.
         while ( text_expression_index < token.textContent.length )
@@ -1237,10 +1381,14 @@ class MathExpressionConverter
 
             } else if ( this.is_numeric ( token.textContent[text_expression_index] ) )
             {
+                // console.log("is numeric: index ", text_expression_index );
+
                 this.handle_numeric_operand ( token.textContent, text_expression_index, text_expression_length, operand_stack, unfulfilled_operator_node, lhs_operand_stack, rhs_operand_stack, equals_node );
+
+                // console.log("after operand ", text_expression_index );
             }
 
-            text_expression_index += 1;
+            text_expression_index[0] += 1;
 
         }
 
@@ -1260,9 +1408,28 @@ class MathExpressionConverter
             equals_node[0].children.push ( lhs_operand_stack[0] );
             equals_node[0].children.push ( rhs_operand_stack[0] );
 
+
+            // Check if the left handed side is a function and log its input if so.
+            if ( lhs_operand_stack[0].node_value_type == "function"  && lhs_operand_stack[0].input_node != undefined )
+            {
+
+                equals_node[0].input = lhs_operand_stack[0].input_node.get_value ( );
+
+            }
+
+            // Check if the right hand side is evaluateable
+            if ( rhs_operand_stack[0].node_value_type == "numeric" )
+            {
+                
+                equals_node[0].output = rhs_operand_stack[0].numeric_value;
+
+            }
+
             return equals_node[0];
 
         }
+
+        return lhs_operand_stack[0];
     }
 
 
@@ -1651,6 +1818,8 @@ export default class MathParser
 
         // Create the math decoder
         this.math_decoder = new MathDecoder(scene_context);
+
+        this.equation_export_tokens = [[]];
 
     }
 
@@ -2614,8 +2783,10 @@ export default class MathParser
         // Any id given explicitly will return a group of id's under its container
         // The math parser just absorbs ids, the decoder generates them and associates indexes into the text pool for each,
         
+        
+
         // After decoding the decoder should end the current equation, if there is an equation.
-        return this.math_decoder.decode(export_tokens, id_map_reference);
+        return this.math_decoder.decode(export_tokens, id_map_reference, this.equation_export_tokens );
 
     }
 
@@ -2702,13 +2873,13 @@ export default class MathParser
 }
 
 
-let math_parser = new MathParser( undefined );
+// let math_parser = new MathParser( undefined );
 
-let export_tokens = math_parser.get_export_tokens ( "f_n = 0" );
+// let export_tokens = math_parser.get_export_tokens ( "f_n = 0" );
 
-let expression_converter = new MathExpressionConverter ( );
+// let expression_converter = new MathExpressionConverter ( );
 
-let converted_root = expression_converter.convert ( export_tokens );
+// let converted_root = expression_converter.convert ( export_tokens );
 
 // let math_expression_solver = new MathExpresssionSolver ( );
 

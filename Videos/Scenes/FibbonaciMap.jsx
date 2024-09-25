@@ -6,8 +6,11 @@ import * as THREE from 'three';
 export default class FibbonaciMap
 {
 
-    constructor(scene_context)
+    constructor(scene_context, scene)
     {
+
+            this.scene = scene;
+
             // Store the scene context
             this.scene_context = scene_context;
 
@@ -15,13 +18,17 @@ export default class FibbonaciMap
             // The camera zooms into a platform, a couple of fibbonaci sequences are calculated and shown, in the way they are visualized, accompanied by the ugly spheres.
             // The camera then shows the plane drift into reality, then the planes insides are animated with time.
             
+            this.primitive_cap = -1;
 
             this.generate_sequences();
-            //this.generate_geometry_texture();
-            //this.texture_to_instance();
+            
+            this.generate_geometry_texture();
+            this.texture_to_instance();
 
             // Set a knob, which the number of revealed sequences
             // Integer
+
+            
             
     }
 
@@ -108,11 +115,12 @@ export default class FibbonaciMap
 
             }
 
+            uniform int primitive_cap;
+
             void main() {
 
                 // If id > id_limit | animations discard
                 // Else if id == id_limit -1, and t > | animation t_limit discard.
-
 
                 // Primitive type.
                 int primitive_type = 4;
@@ -123,11 +131,19 @@ export default class FibbonaciMap
                 // The group id is current group number per primitive.
                 int primitive_id = ((pixel_id)/primitive_type);
 
+                if ( primitive_cap >= 0 && primitive_id > primitive_cap )
+                {
+                    discard;
+
+                }
+
                 // The vertex is the current vertex of the group id primitive; 
                 int vertex_id = (pixel_id%primitive_type);
 
                 // The sequence index
                 int sequence_id = get_sequence_id(primitive_id);
+
+                
 
                 // Resolutions of the current curve
                 float resolution = texelFetch(sequence_resolutions, ivec2(sequence_id, 0), 0).x;
@@ -223,9 +239,7 @@ export default class FibbonaciMap
         
         // Set the resolution
         this.geometry_texture_resolution = new THREE.Vector3(600,600);
-
         
-
         this.texture_generator = new THREE.ShaderMaterial({
             vertexShader: vertexShader, fragmentShader: fragmentShader,
             uniforms:{
@@ -236,12 +250,16 @@ export default class FibbonaciMap
                 number_of_sequences: {value: this.number_of_sequences },
                 primitive_id_map :  {value: this.primitive_id_map },
                 sequence_transforms: {value: this.sequence_transforms},
+                primitive_cap : { value: this.primitive_cap }
+                
                     
             }
             
         });
 
-        this.secondaryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator))
+        this.geometry_mesh = new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator) ;
+
+        this.secondaryScene.add( this.geometry_mesh );
 
         // Create a render target
         this.renderTarget = new THREE.WebGLRenderTarget(this.geometry_texture_resolution.x,this.geometry_texture_resolution.y,{
@@ -251,16 +269,16 @@ export default class FibbonaciMap
             magFilter: THREE.LinearFilter,
         });
 
+        
+
         // Map a plane to display.
         const displayPlane = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map: this.renderTarget.texture}));
             
-        this.scene_context.scene.add(displayPlane);
+        //this.scene_context.scene.add(displayPlane);
 
         // Register on animate to generate the texture
         this.scene_context.onAnimate.add_event( this.render_geometry_texture.bind(this) );
     }
-
-
 
     render_geometry_texture()
     {
@@ -455,6 +473,198 @@ export default class FibbonaciMap
 
     }
 
+    plot_sequences( plot )
+    {
+
+        // n
+        let fibbonacci_cap = 12;
+        // Generate sequences of the fibonacci up to a certain number n.
+
+        // Generate the shader meta data sequences.
+        let sequences = new Float32Array( fibbonacci_cap*fibbonacci_cap  );
+        let resolutions = new Float32Array( fibbonacci_cap*fibbonacci_cap );
+        let arc_lengths = new Float32Array( fibbonacci_cap*fibbonacci_cap );
+        let transforms = new Float32Array( fibbonacci_cap*fibbonacci_cap*16 );
+
+        // Generate a proper way of retrieving the sequence id
+        let primitive_id_map = new Float32Array(  fibbonacci_cap*fibbonacci_cap );
+        // Set a counter for the current primitive ids
+        let primitive_id = 0;
+
+        // Generate an index for the sphere sequences
+        let sequence_index = 0;
+
+        for( let i = 1; i < fibbonacci_cap; i ++ )
+        {
+            let fib_0 = 0;
+            let fib_1 = 1;
+
+            for ( let j = 0; j < i ; j++)
+            {
+                
+                let temp = fib_0 + fib_1;
+                fib_0 = fib_1;
+                fib_1 = temp;
+
+                //doc.plot0.add_point( new THREE.Vector3( fib_0, i, fib_1 ) );
+                
+
+
+                // Build a transform for the different fibbonaccis.
+                let v0 = new THREE.Vector3(1,0,0);
+                let v1 = new THREE.Vector3(0,1,0);
+                let v2 = new THREE.Vector3(0,0,1);
+                let o = new THREE.Vector3(0,4,0);
+
+                transforms[ (sequence_index*16) ] = v0.x ;
+                transforms[ (sequence_index*16) +1  ] = v0.y;
+                transforms[ (sequence_index*16) +2 ] = v0.z;
+                transforms[ (sequence_index*16) +3 ] = 1;
+
+                transforms[ (sequence_index*16) +4 ] = v1.x;
+                transforms[ (sequence_index*16) +5 ] = v1.y;
+                transforms[ (sequence_index*16) +6 ] = v1.z;
+                transforms[ (sequence_index*16) +7 ] = 1;
+
+                transforms[ (sequence_index*16) +8 ] = v2.x;
+                transforms[ (sequence_index*16) +9 ] = v2.y;
+                transforms[ (sequence_index*16) +10 ] = v2.z;
+                transforms[ (sequence_index*16) +11 ] = 1;
+
+                transforms[ (sequence_index*16) +12 ] = o.x;
+                transforms[ (sequence_index*16) +13 ] = o.y;
+                transforms[ (sequence_index*16) +14 ] = o.z;
+                transforms[ (sequence_index*16) +15 ] = 1;
+
+                // Set the array to include information about how many primitives there are in this sequence.
+                resolutions[ sequence_index ] = 10*temp;
+
+                // Set the primitive id map to include 20*temp ontop of the curent counter.
+                primitive_id_map[sequence_index] = 10*temp + primitive_id;
+
+                //this.scene_context.animate.custom ( [this.geometry_mesh.material.uniforms.primitive_cap], 1, primitive_id, primitive_id+10*temp );
+
+
+
+                primitive_id += 10*temp;
+                
+                // Let arc length
+                let arc_length = 0.2;
+
+                if ( i != 0 )
+                {
+                    arc_length = j/(i);
+                }
+
+                // Then push the 
+                arc_lengths[ sequence_index ] = arc_length;
+
+                //console.log(arc_length);
+
+                // Then push the fibbonaci numbers
+                sequences[sequence_index++] = temp*0.5;
+
+            }
+
+            
+              
+        }
+        
+        for( let i = 1; i < fibbonacci_cap; i ++ )
+        {
+            let fib_0 = 0;
+            let fib_1 = 1;
+
+            for ( let j = 0; j < i ; j++)
+            {
+                
+                let temp = fib_0 + fib_1;
+                fib_0 = fib_1;
+                fib_1 = temp;
+
+
+                // Build a transform for the different fibbonaccis.
+                let v0 = new THREE.Vector3(1,0,0);
+                let v1 = new THREE.Vector3(0,1,0);
+                let v2 = new THREE.Vector3(0,0,-1);
+                let o = new THREE.Vector3(0,4,0);
+
+                transforms[ (sequence_index*16) ] = v0.x;
+                transforms[ (sequence_index*16) +1  ] = v0.y;
+                transforms[ (sequence_index*16) +2 ] = v0.z;
+                transforms[ (sequence_index*16) +3 ] = 1;
+
+                transforms[ (sequence_index*16) +4 ] = v1.x;
+                transforms[ (sequence_index*16) +5 ] = v1.y;
+                transforms[ (sequence_index*16) +6 ] = v1.z;
+                transforms[ (sequence_index*16) +7 ] = 1;
+
+                transforms[ (sequence_index*16) +8 ] = v2.x;
+                transforms[ (sequence_index*16) +9 ] = v2.y;
+                transforms[ (sequence_index*16) +10 ] = v2.z;
+                transforms[ (sequence_index*16) +11 ] = 1;
+
+                transforms[ (sequence_index*16) +12 ] = o.x;
+                transforms[ (sequence_index*16) +13 ] = o.y;
+                transforms[ (sequence_index*16) +14 ] = o.z;
+                transforms[ (sequence_index*16) +15 ] = 1;
+
+                // Set the array to include information about how many primitives there are in this sequence.
+                resolutions[ sequence_index ] = 10*temp;
+
+                // Set the primitive id map to include 20*temp ontop of the curent counter.
+                primitive_id_map[sequence_index] = 10*temp + primitive_id;
+                primitive_id += 10*temp;
+                
+                // Let arc length
+                let arc_length = 0.2;
+
+                if ( i != 0 )
+                {
+                    arc_length = j/(i);
+                }
+
+                // Then push the 
+                arc_lengths[ sequence_index ] = arc_length;
+
+                //console.log(arc_length);
+
+                // Then push the fibbonaci numbers
+                sequences[sequence_index++] = temp*0.5;
+
+            }
+
+            
+              
+        }
+
+        // Number of sequences.
+    //     this.number_of_sequences = sequence_index;
+
+    //     // Fill the transform map
+    //     this.sequence_transforms = new THREE.DataTexture(transforms, sequence_index*4, 1, THREE.RGBAFormat, THREE.FloatType)
+    //     this.sequence_transforms.needsUpdate = true;
+
+    //     // Fill the primitive id map
+    //     this.primitive_id_map = new THREE.DataTexture(primitive_id_map, sequence_index, 1, THREE.RedFormat, THREE.FloatType);
+    //     this.primitive_id_map.needsUpdate = true;
+    //     // Resolutions
+    //     this.sequence_resolutions = new THREE.DataTexture(resolutions, sequence_index, 1, THREE.RedFormat, THREE.FloatType);
+    //     this.sequence_resolutions.needsUpdate = true;
+
+    //     // Fill the fibbonacci numbers.
+    //     this.sequence_texture = new THREE.DataTexture(sequences, sequence_index, 1, THREE.RedFormat, THREE.FloatType);
+    //     this.sequence_texture.needsUpdate = true;
+
+    //     // Arc lengths
+    //     this.sequence_arc_lengths = new THREE.DataTexture(arc_lengths, sequence_index, 1, THREE.RedFormat,
+    // THREE.FloatType);
+    //     this.sequence_arc_lengths.needsUpdate = true;
+
+
+
+    }
+
     texture_to_instance()
     {
         let vertices = new Float32Array([
@@ -601,7 +811,7 @@ export default class FibbonaciMap
         planeMesh.frustumCulled = false;
 
         // Add the instanced mesh to the scene
-        this.scene_context.scene.add(planeMesh);
+        this.scene.add(planeMesh);
 
 
 
@@ -629,8 +839,6 @@ export default class FibbonaciMap
 
 
     }
-
-    
 
 
 };

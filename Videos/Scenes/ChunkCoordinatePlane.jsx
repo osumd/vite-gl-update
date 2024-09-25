@@ -3,20 +3,35 @@
 
 import * as THREE from 'three';
 
+// Import the lights texture
+import LightsTexture from './LightsTexture';
+
+// Import the material object
+import Material from './Material';
+
 class ChunkCoordinatePlane {
 
     constructor( scene_context, origin=new THREE.Vector3(0,0,0) )
     {
 
-        
+        this.lights_texture = scene_context.lights;
+
+        // Set a default lights texture
+        // this.lights_texture = new LightsTexture( );
+
+        // Set a default light in the scene
+        // this.lights_texture.add_light( new THREE.Vector3(-10,1,0), new THREE.Vector3(1,0,0) );
+        // this.lights_texture.add_light( new THREE.Vector3(10,20,0), new THREE.Vector3(0,1,0) );
+
+        // Set the material
+        this.material = new Material();
+
+        // Then set a material
 
         //  Set the origin  of the chunk coordinate plane
         this.origin = origin;
 
-
         this.scene_context = scene_context;
-
-        this.subdivisions = 4;
 
         // Chunk section.
         // Limit the amount of chunks in the chunk array at a time.
@@ -30,7 +45,7 @@ class ChunkCoordinatePlane {
 
         this.number_of_active_chunks = 0;
 
-        this.primitives_per_chunk = 2;
+        this.primitives_per_chunk = 4;
 
         this.primitive_type = 4;
 
@@ -58,8 +73,6 @@ class ChunkCoordinatePlane {
 
     generate_geometry_texture()
     {
-
-        
 
         // Create secondary camera
         this.secondaryCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
@@ -153,14 +166,12 @@ class ChunkCoordinatePlane {
 
                 vec4 color = vec4( 10, 0, 0, 1);
 
-                float thickness = 0.1;
+                float thickness = 0.05;
                 
                 if ( relative_primitive % 2 == 0 )
                 {
 
                     int sub_relative_primitive = relative_primitive;
-
-
 
                     if ( vertex_id == 0 )
                     {
@@ -313,7 +324,7 @@ class ChunkCoordinatePlane {
         //this.scene_context.scene.add(displayPlane);
 
         // Register on animate to generate the texture
-        //this.scene_context.onAnimate.add_event( this.render_geometry_texture.bind(this) );
+        this.scene_context.onAnimate.add_event( this.render_geometry_texture.bind(this) );
     }
 
     render_geometry_texture()
@@ -594,7 +605,6 @@ class ChunkCoordinatePlane {
 
         this.clear_chunks();
 
-
         // Get the camera position
         let camera_position = this.scene_context.camera.position.clone();
 
@@ -605,12 +615,13 @@ class ChunkCoordinatePlane {
         let camera_chunk_y = this.origin.y;
 
         // The floor with snap to the lowest Z value which is on the back side of the chunk.
-        let camera_chunk_z = this.origin.z ;
+        let camera_chunk_z = this.origin.z;
 
         let camera_chunk_lower = new THREE.Vector3( camera_chunk_x, camera_chunk_y, camera_chunk_z );
         let camera_chunk_upper = new THREE.Vector3( camera_chunk_x + this.chunk_size, camera_chunk_y + this.chunk_size, camera_chunk_z - this.chunk_size ); 
 
-        this.add_chunk ( camera_chunk_lower, camera_chunk_upper );
+        //this.add_chunk ( camera_chunk_lower, camera_chunk_upper );
+
 
         for ( let i = 0; i < this.chunk_radius; i ++ )
         {
@@ -618,6 +629,7 @@ class ChunkCoordinatePlane {
             for ( let j = 0; j < this.chunk_radius; j ++ )
             {
 
+    
                     camera_chunk_lower.x = camera_chunk_x + i*this.chunk_size;
                     camera_chunk_lower.y = camera_chunk_y;
                     camera_chunk_lower.z = camera_chunk_z - j*this.chunk_size;
@@ -777,6 +789,8 @@ class ChunkCoordinatePlane {
 
     }
 
+    // 
+
     return_mesh ( )
     {
         let vertices = new Float32Array([
@@ -818,8 +832,33 @@ class ChunkCoordinatePlane {
         uniform sampler2D geometry_texture;
         uniform vec2 resolution;
         uniform int primitive_type;
-
         uniform mat4 model;
+        
+        // Sending the normal 
+        varying vec3 o_normal;
+        // Send the fragment position
+        varying vec3 o_fragpos;
+
+        vec3 calculate_normal (  )
+        {
+
+            // Left hand side so the normal so the reference coordinates should be
+            ivec2 bottom_pixel = ivec2 ( ((gl_InstanceID*primitive_type)) % int(resolution.x), ((gl_InstanceID*primitive_type)) / int(resolution.x) );
+            ivec2 right_pixel = ivec2 ( ((gl_InstanceID*primitive_type) + 1) % int(resolution.x), ((gl_InstanceID*primitive_type) + 1) / int(resolution.x) );
+            ivec2 top_pixel = ivec2 ( ((gl_InstanceID*primitive_type) + 2) % int(resolution.x), ((gl_InstanceID*primitive_type) + 2) / int(resolution.x) );
+            ivec2 up_pixel = ivec2 ( ((gl_InstanceID*primitive_type) + 3) % int(resolution.x), ((gl_InstanceID*primitive_type) + 3) / int(resolution.x) );
+
+            // Texel snatch the according vertex.
+            vec3 right_pos = texelFetch(geometry_texture, right_pixel, 0).xyz;
+            vec3 bottom_pos = texelFetch ( geometry_texture, bottom_pixel, 0).xyz;
+            vec3 up_pos = texelFetch(geometry_texture, up_pixel, 0).xyz;
+            
+            vec4 right_vec = model*vec4 ( normalize ( right_pos - bottom_pos ), 1.0);
+            vec4 up_vec = model* vec4 ( normalize ( up_pos - bottom_pos ), 1.0 );
+
+            return cross ( right_vec.xyz, up_vec.xyz );
+
+        }
 
         void main ( )
         {
@@ -827,13 +866,18 @@ class ChunkCoordinatePlane {
             // Calculate the pixel coordinate from instance variable
             ivec2 pixel_coordinate = ivec2 ( ((gl_InstanceID*primitive_type) + gl_VertexID) % int(resolution.x), ((gl_InstanceID*primitive_type) + gl_VertexID ) / int(resolution.x) );
 
+            // Calculate the normal and ship it out
+            o_normal = calculate_normal ( );
+
             // Texel snatch the according vertex.
             vec4 geom = texelFetch(geometry_texture, pixel_coordinate, 0);
 
             // Modify position based on instance ID
             vec3 pos = geom.xyz;
+
+            // Send the fragment pos
+            o_fragpos = vec3( model * vec4(pos, 1.0) );
                 
-      
             // Apply standard transformations
             gl_Position = projectionMatrix * modelViewMatrix * model* vec4(pos, 1.0);
         }
@@ -841,14 +885,174 @@ class ChunkCoordinatePlane {
 
         let fragment_shader = `
         
+        // Normal and fragpos
+        varying vec3 o_normal;
+        varying vec3 o_fragpos;
+
+        // Get the view pos in there
+        uniform vec3 viewPos;
+
+        uniform vec3 ambient;
+        uniform vec3 diffuse;
+        uniform vec3 specular;
+        uniform float shininess;
+
+        // Texture of lights these are the essential ingredients of a texture vector;
+        uniform sampler2D lights;
+        // Resolution of the lights texture.
+        uniform ivec2 lights_dimension;
+        // Number of lights
+        uniform int lights_count;
+        // Then the size of the structure in terms of floats 
+        uniform int lights_struct_size;
+
+        ivec2 light_index ( int light, int stride )
+        {
+
+            int index =  ( ( light * lights_struct_size )/4 ) + stride;
+
+            int index_x = index % lights_dimension.x;
+            int index_y = index / lights_dimension.x;
+
+            return ivec2( index_x, index_y );
+
+        }
+
+        vec4 point_light ( vec4 color, vec4 light_pos, vec4 light_diffuse, vec4 light_ambient, vec4 light_specular, vec4 light_type )
+        {
+
+            // Set the light color
+            vec3 lightAmbient = light_ambient.xyz;
+
+            vec3 ambient = lightAmbient * ambient;
+
+            // This lighting runs for each light and updates the light of the object in each pass.
+            vec3 norm = normalize(o_normal);
+            vec3 lightDir = light_pos.xyz - o_fragpos;
+
+            // Distance.
+            float lightDirLength = length(lightDir);
+
+            float intensity = 4.0;
+            float attenuation = ( intensity/ (  1.0 + (0.7*lightDirLength) + 0.0*( lightDirLength*lightDirLength ) ));
+            //attenuation = intensity / lightDirLength;
+
+
+            lightDir = normalize(lightDir);
+
+            float diff = max( dot(norm,lightDir), 0.0 );
+            
+            vec3 diffuse = ( diff * diffuse  ) * light_diffuse.xyz;
+
+            // Specular
+            float specularStrength = 0.5;
+            vec3 viewDir = normalize(viewPos.xyz - o_fragpos);
+            vec3 reflectDir = reflect(-lightDir, norm);
+            float spec = pow( max( dot(viewDir,reflectDir),0.0 ), shininess);
+            vec3 specular = (spec * specular) * lightAmbient;
+
+            ambient *= attenuation;
+            diffuse *= attenuation;
+            specular *= attenuation;
+
+
+            return vec4(diffuse + specular + ambient, 1.0);
+            
+
+        }
+
+        vec4 sun_light ( vec4 color, vec4 light_pos, vec4 light_diffuse, vec4 light_ambient, vec4 light_specular, vec4 light_type )
+        {
+
+             // Set the light color
+            vec3 lightAmbient = light_ambient.xyz;
+
+            vec3 ambient = lightAmbient * ambient;
+
+            // This lighting runs for each light and updates the light of the object in each pass.
+            vec3 norm = normalize(o_normal);
+            vec3 lightDir = light_pos.xyz - o_fragpos;
+
+            lightDir = normalize(lightDir);
+
+            float diff = max( dot(norm,lightDir), 0.0 );
+            
+            vec3 diffuse = ( diff * diffuse  ) * light_diffuse.xyz;
+
+            // Specular
+            vec3 viewDir = normalize(viewPos.xyz - o_fragpos);
+            vec3 reflectDir = reflect(-lightDir, norm);
+            float spec = pow( max( dot(viewDir,reflectDir),0.0 ), shininess);
+            vec3 specular = (spec * specular) * lightAmbient;
+
+
+
+
+            return vec4(diffuse + specular + ambient, 1.0);
+
+        }
+
+
+
+        
+        vec4 calculate_lighting ( )
+        {
+
+            // Set the color
+            vec4 color = vec4(0,0,0,1);
+
+            // Iterate through each light and extract it from the lights sampler2D
+            for ( int i = 0; i < lights_count; i++ )
+            {
+            
+                vec4 light_pos = texelFetch( lights, light_index(i, 0), 0 );
+                vec4 light_diffuse = texelFetch ( lights, light_index(i,1), 0 );
+                vec4 light_ambient = texelFetch ( lights, light_index(i,2), 0);
+                vec4 light_specular = texelFetch ( lights, light_index(i,3), 0);
+                vec4 light_type = texelFetch ( lights, light_index(i,4), 0);
+
+                if ( light_type.x == 1.0 )
+                {
+                    color += point_light ( color, light_pos, light_diffuse, light_ambient, light_specular, light_type );  
+                    
+                }
+
+                if ( light_type.x == 0.0 )
+                {
+                    color += sun_light ( color, light_pos, light_diffuse, light_ambient, light_specular, light_type );
+                }
+
+                
+                
+                
+                
+            }
+
+
+
+            return color;
+        
+
+
+        }
+
+        
+
         void main ( )
         {
 
-            gl_FragColor = vec4 ( 0.0, 1.0, 0.0, 1.0 );
+
+            // Get the object color through the lighting
+
+            vec4 color = calculate_lighting( );
+
+            gl_FragColor = color;
 
         }
         `
 
+        
+        console.log( this.lights_texture.count() );
         let material = new THREE.ShaderMaterial({
             vertexShader : vertex_shader,
             fragmentShader: fragment_shader,
@@ -856,10 +1060,21 @@ class ChunkCoordinatePlane {
                 "geometry_texture" : { value: this.renderTarget.texture },
                 "resolution" : { value: this.geometry_texture_resolution },
                 "primitive_type" : { value: this.primitive_type },
-                "model" : { value: new THREE.Matrix4() }
+                "model" : { value: new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0,0,0)) },
+                "lights": {value: this.lights_texture.texture() },
+                "lights_dimension" : {value: this.lights_texture.dimension() },
+                "lights_count" : {value: this.lights_texture.count()  },
+                "lights_struct_size": {value: this.lights_texture.struct_size() },
+                "viewPos" : {value:this.scene_context.camera.position},
+                "ambient" : { value:this.material.ambient },
+                "diffuse" : {value:this.material.diffuse},
+                "specular" : {value:this.material.specular},
+                "shininess" : {value:this.material.shininess}
             },
             side: THREE.DoubleSide
         });
+
+        //console.log (this.lights_texture.texture(),  this.lights_texture.dimension(), this.lights_texture.count(),this.lights_texture.struct_size() );
 
         this.mesh = new THREE.InstancedMesh(plane_geometry, material, this.number_of_active_chunks*this.primitives_per_chunk);
 
