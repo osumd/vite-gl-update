@@ -121,7 +121,11 @@ class Plot
     {
         let chunk_plane = new ChunkCoordinatePlane ( this.scene_context, this.origin );
         this.scene.add ( chunk_plane.return_mesh() );
+
+        return chunk_plane;
     }
+
+
 
     fade_plane ( location, width, height, normal )
     {

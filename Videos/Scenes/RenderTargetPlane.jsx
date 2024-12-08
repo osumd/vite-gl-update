@@ -106,7 +106,7 @@ class RenderTargetPlane
     generate_plane_geometry_material ( )
     {
 
-        let plane_geometry = new THREE.PlaneGeometry(2,2);
+        this.plane_geometry = new THREE.PlaneGeometry(2,2);
 
         let vertex_shader = `
         
@@ -181,7 +181,7 @@ class RenderTargetPlane
 
         
 
-        this.plane_mesh = new THREE.Mesh ( plane_geometry, this.plane_material );
+        this.plane_mesh = new THREE.Mesh ( this.plane_geometry, this.plane_material );
         this.plane_mesh.scale.set( this.width, this.height, 1.0);
 
         this.plane_mesh.position.set(this.center.x, this.center.y, this.center.z);
@@ -203,6 +203,7 @@ class RenderTargetPlane
         this.plane_mesh.material.uniforms.scene_texture_resolution.value = new THREE.Vector2(render_target.width, render_target.height);
         this.plane_mesh.material.uniforms.scene_texture.value = render_target.texture;
 
+        
 
     }
 

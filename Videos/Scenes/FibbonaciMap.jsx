@@ -272,12 +272,13 @@ export default class FibbonaciMap
         
 
         // Map a plane to display.
-        const displayPlane = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map: this.renderTarget.texture}));
+        //const displayPlane = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map: this.renderTarget.texture}));
             
         //this.scene_context.scene.add(displayPlane);
 
         // Register on animate to generate the texture
         this.scene_context.onAnimate.add_event( this.render_geometry_texture.bind(this) );
+        
     }
 
     render_geometry_texture()

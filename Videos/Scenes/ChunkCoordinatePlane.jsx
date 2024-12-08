@@ -6,8 +6,14 @@ import * as THREE from 'three';
 // Import the lights texture
 import LightsTexture from './LightsTexture';
 
+// Import a texture vector
+
 // Import the material object
 import Material from './Material';
+import TextureVector from './TextureVector';
+
+
+
 
 class ChunkCoordinatePlane {
 
@@ -26,7 +32,8 @@ class ChunkCoordinatePlane {
         // Set the material
         this.material = new Material();
 
-        // Then set a material
+        // Create an opacities texture for pushing
+        this.opacities = new TextureVector(1, THREE.RedFormat);
 
         //  Set the origin  of the chunk coordinate plane
         this.origin = origin;
@@ -49,6 +56,9 @@ class ChunkCoordinatePlane {
 
         this.primitive_type = 4;
 
+
+        // Set the object tag
+        this.tag_type = "chunk";
 
         // Chunk finding properties
         // Design the chunk size.
@@ -85,8 +95,6 @@ class ChunkCoordinatePlane {
         const vertexShader = `
             varying vec2 vUv;
 
-            // Layout of the buffer, 
-
             void main() {
                 vUv = uv;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -110,6 +118,8 @@ class ChunkCoordinatePlane {
             uniform int pixel_per_chunk;
 
             uniform int number_of_active_chunks;
+
+
 
             void main() {
 
@@ -301,12 +311,14 @@ class ChunkCoordinatePlane {
 
                 // Number of active chunks.
                 number_of_active_chunks : { value: this.number_of_active_chunks },
-
+                opacities : { value: this.opacities}
 
                     
             }
             
         });
+
+
 
         this.secondaryScene.add( new THREE.Mesh(new THREE.PlaneGeometry(2,2),  this.texture_generator) )
 
@@ -319,7 +331,7 @@ class ChunkCoordinatePlane {
         });
 
         // Map a plane to display.
-        const displayPlane = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map: this.renderTarget.texture}));
+
             
         //this.scene_context.scene.add(displayPlane);
 
@@ -341,12 +353,12 @@ class ChunkCoordinatePlane {
 
         let vertex_shader = `
 
+
             varying vec2 vUv;
             void main ( )
             {
 
                 vUv = uv;
-
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 
             }
@@ -357,13 +369,15 @@ class ChunkCoordinatePlane {
             varying vec2 vUv;
 
             uniform sampler2D geometry_texture;
-
+            
             
             void main ( )
             {
-            
+
+                 
 
                 gl_FragColor = texture ( geometry_texture, vUv );
+                
 
             }
         `;
@@ -372,7 +386,7 @@ class ChunkCoordinatePlane {
             vertexShader: vertex_shader,
             fragmentShader: fragment_shader,
             uniforms : {
-                "geometry_texture" : { value : this.renderTarget.texture }
+                "geometry_texture" : { value : this.renderTarget.texture },
             }
         });
 
@@ -600,6 +614,12 @@ class ChunkCoordinatePlane {
         this.chunks_texture = new THREE.DataTexture( this.chunks_array, this.chunks_texture_resolution.x, this.chunks_texture_resolution.y, THREE.RGBAFormat, THREE.FloatType );
     }
 
+    //Generate opacities texture
+    set_size_opacities_texture( size )
+    {
+        this.opacities.set_size(1.0, size );
+    }
+
     find_chunks ( ) 
     {
 
@@ -610,6 +630,8 @@ class ChunkCoordinatePlane {
 
        // The amount of chunks to be added would be.
         let chunks_added = 1 + ( this.chunk_radius*this.chunk_radius*this.chunk_radius*4);
+
+        
 
         let camera_chunk_x = this.origin.x;
         let camera_chunk_y = this.origin.y;
@@ -677,7 +699,7 @@ class ChunkCoordinatePlane {
         }
         
 
-        
+        this.set_size_opacities_texture(this.number_of_active_chunks * this.primitives_per_chunk * 4);
 
         this.chunks_texture.image.data.set( this.chunks_array );
 
@@ -839,6 +861,11 @@ class ChunkCoordinatePlane {
         // Send the fragment position
         varying vec3 o_fragpos;
 
+        // Opacity texture
+        uniform sampler2D opacity_tex;
+        uniform ivec2 opacity_tex_dim;
+        varying float opacity;
+
         vec3 calculate_normal (  )
         {
 
@@ -869,6 +896,10 @@ class ChunkCoordinatePlane {
             // Calculate the normal and ship it out
             o_normal = calculate_normal ( );
 
+            // Calculate the opacity based on instanceID
+            opacity = texelFetch(opacity_tex, ivec2(gl_InstanceID % opacity_tex_dim.x, gl_InstanceID / opacity_tex_dim.x), 0).r;
+
+
             // Texel snatch the according vertex.
             vec4 geom = texelFetch(geometry_texture, pixel_coordinate, 0);
 
@@ -889,6 +920,9 @@ class ChunkCoordinatePlane {
         varying vec3 o_normal;
         varying vec3 o_fragpos;
 
+        // Opacity of the primitve
+        varying float opacity;
+
         // Get the view pos in there
         uniform vec3 viewPos;
 
@@ -905,6 +939,8 @@ class ChunkCoordinatePlane {
         uniform int lights_count;
         // Then the size of the structure in terms of floats 
         uniform int lights_struct_size;
+
+
 
         ivec2 light_index ( int light, int stride )
         {
@@ -956,7 +992,7 @@ class ChunkCoordinatePlane {
             specular *= attenuation;
 
 
-            return vec4(diffuse + specular + ambient, 1.0);
+            return vec4(diffuse + specular + ambient, 0);
             
 
         }
@@ -988,7 +1024,7 @@ class ChunkCoordinatePlane {
 
 
 
-            return vec4(diffuse + specular + ambient, 1.0);
+            return vec4(diffuse + specular + ambient, 0);
 
         }
 
@@ -1046,17 +1082,18 @@ class ChunkCoordinatePlane {
 
             vec4 color = calculate_lighting( );
 
-            gl_FragColor = color;
+            gl_FragColor = vec4(color.xyz, opacity);
 
         }
         `
 
         
-        console.log( this.lights_texture.count() );
         let material = new THREE.ShaderMaterial({
             vertexShader : vertex_shader,
             fragmentShader: fragment_shader,
             uniforms : {
+                "opacity_tex" : { value: this.opacities.texture_data },
+                "opacity_tex_dim" : { value: this.opacities.texture_dimension },
                 "geometry_texture" : { value: this.renderTarget.texture },
                 "resolution" : { value: this.geometry_texture_resolution },
                 "primitive_type" : { value: this.primitive_type },
@@ -1071,8 +1108,13 @@ class ChunkCoordinatePlane {
                 "specular" : {value:this.material.specular},
                 "shininess" : {value:this.material.shininess}
             },
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            blending: THREE.NormalBlending,
+            depthTest: true
         });
+
+        
 
         //console.log (this.lights_texture.texture(),  this.lights_texture.dimension(), this.lights_texture.count(),this.lights_texture.struct_size() );
 

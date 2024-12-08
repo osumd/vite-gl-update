@@ -83,7 +83,7 @@ class EventSystem extends React.Component{
     }
 
     // Adders | Add stuff to this this is a mess
-    add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false, primitive=false}, ...args )
+    add_event( {object, start="auto", end="auto", duration="auto", isRef=false, isText=false, primitive=false, index=undefined}, ...args )
     {
                 
         /* console.log("Object: " + object);
@@ -194,7 +194,7 @@ class EventSystem extends React.Component{
 
                 if ( this.settable_attributes[arg.attribute] != undefined )
                 {
-                    this.settable_attributes[arg.attribute]({head: {object, start, end, duration, isRef, isText, primitive}, value: arg.from});
+                    this.settable_attributes[arg.attribute]({head: {object, start, end, duration, isRef, isText, primitive, index}, value: arg.from});
                 }
 
             }
@@ -222,7 +222,7 @@ class EventSystem extends React.Component{
 
             console.log("EVENT_SYSTEM: Event added!");
             //push the event to the array
-            this.events.push({ head: {object,start,end, duration, isRef, isText, primitive}, attributes: arg_array } );
+            this.events.push({ head: {object,start,end, duration, isRef, isText, primitive, index}, attributes: arg_array } );
 
             //console.log("ADD_EVENT: Current animation group! : ", this.current_animation_group);
             // If a current group is active then report its index in the events array, in the future this would be a name from a hash map for easier removal.
@@ -405,7 +405,29 @@ class EventSystem extends React.Component{
 
     update_object_opacity ( {head, attribute, t } )
     {
-        if ( head.object.tag_type == "instanced_mesh" )
+
+
+        if ( head.object.tag_type == "chunk")
+        {
+            let easing = attribute.easing;
+            let current_opacity = this.interpolation_methods[easing](attribute.from, attribute.to, t );
+
+            let opacities = head.object.opacities;
+            
+            for (let i = 0; i < opacities.capacity; i++ )
+            {
+                opacities.update(current_opacity, i);
+            }
+
+            
+            
+
+            //head.object.instanced_mesh.material.uniforms.needsUpdate = true;
+
+
+            
+        }
+        else if ( head.object.tag_type == "instanced_mesh" )
         {
             let easing = attribute.easing;
             let current_opacity = this.interpolation_methods[easing](attribute.from, attribute.to, t );
@@ -624,7 +646,22 @@ class EventSystem extends React.Component{
 
             this.scene_context.instanceMachine.primitive_reference[head.primitive].instanceMatrix.needsUpdate = true;
 
-        }else
+        }else if (head.object.tag_type == "texture_vector")
+        {
+
+            //set easing from attribute arg
+            let easing = attribute.easing;
+
+            let x = this.interpolation_methods[easing](attribute.from.x, attribute.to.x, t);
+            let y = this.interpolation_methods[easing](attribute.from.y, attribute.to.y, t);
+            let z = this.interpolation_methods[easing](attribute.from.z, attribute.to.z, t);
+
+            
+
+            head.object.update_position([x,y,z], head.index);
+
+        }
+        else
         {
             //set easing from attribute arg
             let easing = attribute.easing;
@@ -656,7 +693,7 @@ class EventSystem extends React.Component{
         }else if ( head.isText == true)
         {
             let easing = attribute.easing;
-            console.log()
+
             let x = this.interpolation_methods[easing](attribute.from.x, attribute.from.x + attribute.to.x, t);
             let y = this.interpolation_methods[easing](attribute.from.y, attribute.from.y + attribute.to.y, t);
             let z = this.interpolation_methods[easing](attribute.from.z, attribute.from.z + attribute.to.z, t);
@@ -1002,7 +1039,7 @@ class EventSystem extends React.Component{
         let easing = attribute.easing;
         let theta = this.interpolation_methods[easing]( attribute.from, attribute.to, t );
 
-        console.log("theta, t", theta, t);
+        //console.log("theta, t", theta, t);
 
         let v = new THREE.Vector3( Math.cos(theta), 1, Math.sin(theta) ).multiplyScalar(attribute.radius);
 
@@ -1094,7 +1131,7 @@ class EventSystem extends React.Component{
 
     get_change ( {head, attribute} )
     {
-        console.log(head.object);
+        //console.log(head.object);
     }
 
     update_change ( {head, attribute } )
@@ -1315,11 +1352,11 @@ class EventSystem extends React.Component{
             let attribute_title = event_attributes[attribute_index].attribute;
 
             //console.log(event_attributes[attribute_index].init)
-            console.log( attribute_title );
+            //console.log( attribute_title );
             //if this is the first time the event attributes was encountered then set the init
             if ( this.animateable_attributes[attribute_title] != undefined )
             {
-                console.log("true");
+                //console.log("true");
                 this.animateable_attributes[attribute_title]( {head: event_head, attribute: event_attributes[attribute_index], t: 0} );
             }
 
@@ -1368,7 +1405,7 @@ class EventSystem extends React.Component{
 
                 this.init_event_attributes( added_event );
 
-                console.log( "event" );
+                //console.log( "event" );
 
 
                 
@@ -1390,7 +1427,8 @@ class EventSystem extends React.Component{
 
     }
 
-    position ( object, duration, from , to )
+    // Adds additional index feature for accessing instance meshes or texture vectors.
+    position ( object, duration, from , to, index )
     {
         if ( object.all_ids != undefined )
         {
@@ -1400,14 +1438,14 @@ class EventSystem extends React.Component{
             {
 
                 //  If option istext, primitive
-                this.add_event ( {object: object.all_ids[i], start: "last", duration: duration, isText: true }, { attribute: "position", from: from, to: to} );
+                this.add_event ( {object: object.all_ids[i], start: "last", duration: duration, isText: true, index: index }, { attribute: "position", from: from, to: to} );
 
 
             }
 
         }else
         {
-            this.add_event ( {object: object, duration: duration }, { attribute: "position", from: from, to: to} );
+            this.add_event ( {object: object, duration: duration, index: index }, { attribute: "position", from: from, to: to} );
 
         }
     }

@@ -31,8 +31,18 @@ Scene (Scene Name):
 
         Macro Usage:
 
+
+
+
             // The document model
             let s1doc = FuiDoc.parse ( " 
+                
+                
+                < center >
+
+                    a_n = a_n-1 + a_n-2
+
+                </>
                 < display="grid" columns_template = "50% 50%" >
 
                     < >
@@ -54,8 +64,12 @@ Scene (Scene Name):
             
             " ); 
 
-            animate.opacity ( s1doc.lhs.equation1, s1doc.rhs.equation1 ); // fade in
+            animate.opacity ( s1doc.lhs.equation1 ); // fade in
+            animate.opacity ( s1doc.rhs.equation1 );
             animate.opacity ( s1doc.plot );
+
+
+            
 
             let plane = s1doc.infinity_plane ( origin,  ); 
 

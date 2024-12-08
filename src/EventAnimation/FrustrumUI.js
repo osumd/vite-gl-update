@@ -23,8 +23,6 @@ export class FUIDoc
         // Store the plane normal.
         this.plane_normal;
 
-        
-
         // Store a last node processed.
         this.last_node = undefined;
 
@@ -235,6 +233,47 @@ export class FUIDoc
         this.render_fui_tree_dfs ( equation_node );
     }
 
+
+    // Submodules based on updating content size for different positioning statuses
+    // x,y,z,w are parent bounding box
+    default_update_content_size(node, estimated_content_height, estimated_content_width, x,y,z,w)
+    {
+        if ( node.height != 0 )
+        {
+            node.calculated_height = node.height * (w-y);
+        }else
+        {
+            // Update the nodes height and width.
+            node.calculated_height = estimated_content_height;
+        }
+
+        if (node.width != 0)
+        {
+            
+            node.calculated_width = node.width * ( z-x );
+            
+        }else
+        {
+            node.calculated_width = estimated_content_width;
+        }
+    }
+
+    absolute_update_content_size(node, estimated_content_height, estimated_content_width, x,y,z,w)
+    {
+
+        
+
+        x = this.standard_bounding[0]*this.camera_right.length();
+        y = this.standard_bounding[1]*this.camera_up.length();
+        z = this.standard_bounding[2]*this.camera_right.length();
+        w = this.standard_bounding[3]*this.camera_up.length();
+
+        node.calculated_width = estimated_content_width;
+
+        node.calculated_height = estimated_content_height;
+
+    }
+
     update_content_size(node)
     {
         // We first get information about the current node
@@ -260,7 +299,7 @@ export class FUIDoc
             parent_bounding[0] = this.standard_bounding[0]*this.camera_right.length();
             parent_bounding[1] = this.standard_bounding[1]*this.camera_up.length();
             parent_bounding[2] = this.standard_bounding[2]*this.camera_right.length();
-            parent_bounding[3] = this.standard_bounding[3]*this.camera_up.length();;
+            parent_bounding[3] = this.standard_bounding[3]*this.camera_up.length();
         }else
         {
             parent_bounding = node.parent.calculated_bounding;
@@ -273,62 +312,130 @@ export class FUIDoc
         let z = parent_bounding[2];
         let w = parent_bounding[3];
 
-   //     console.log("PARENT_CONTAINER", parent_bounding);
-
-        if ( node.height != 0 )
+        if (node.positioning == undefined)
         {
-            node.calculated_height = node.height * (w-y);
-        }else
-        {
-            // Update the nodes height and width.
-            node.calculated_height = estimated_content_height;
-        }
-
-        if (node.width != 0)
+            this.default_update_content_size(node, estimated_content_height, estimated_content_width, x,y,z,w);
+        }else if (node.positioning == "absolute")
         {
             
-            node.calculated_width = node.width * ( z-x );
-            
-        }else
-        {
-            node.calculated_width = estimated_content_width;
+            this.absolute_update_content_size(node, estimated_content_height, estimated_content_width, x,y,z,w);
         }
+       
 
+    }
+
+    update_z_position(node)
+    {
+        
+        if (node.z != undefined)
+        {
+            
+        }else if ( node.positioning == "absolute")
+        {
+
+            //let cam_dir = this.camera_origin.clone().sub(new THREE.Vector3(node.calculated_position[0], node.calculated_position[1], node.calculated_position[2])).normalize();
+        
+            //let z = new THREE.Vector3(node.calculated_position[0], node.calculated_position[1], node.calculated_position[2]).add(cam_dir.multiplyScalar(2));
+
+            //let z = this.camera_origin.clone().add(cam_dir.multiplyScalar(2));
+
+            //console.log(z);
+
+            //node.calculated_position[0] = z.x;
+            //node.calculated_position[1] = z.y;
+            
+            //node.calculated_position[1] -= 10;
+
+            let cam_origin = this.scene_context.camera.position.clone();
+
+
+            let cam_dir = cam_origin.sub( new THREE.Vector3(node.calculated_position[0], node.calculated_position[1], node.calculated_position[2])).normalize().multiplyScalar(1.0);
+
+
+
+            let out = new THREE.Vector3(node.calculated_position[0], node.calculated_position[1], node.calculated_position[2]).add(cam_dir);
+            
+            
+            node.calculated_position[0] = out.x;
+            node.calculated_position[1] = out.y;
+            node.calculated_position[2] = out.z;
+
+
+            
+        }
     }
 
     update_position(node)
     {
 
-        // Then its assumed the node is absolute, this position.
-        let parent_container;
-
-        if ( node.parent != undefined )
+        if (node.positioning == undefined)
         {
-            parent_container = node.parent.calculated_bounding;
+            // Then its assumed the node is absolute, this position.
+            let parent_container;
 
-        }else
+            if ( node.parent != undefined )
+            {
+                parent_container = node.parent.calculated_bounding;
+
+            }else
+            {
+                parent_container = this.standard_bounding;
+                // Use the standard bounding container.
+            }
+
+
+            // If the parent does not exist use the standard bounding container for position.
+            if( node.parent != undefined )
+            {
+                //console.log(node.parent.calculated_offset);
+                // Unpack the parents calculated bounding container.
+                node.calculated_position[0] = node.parent.calculated_position[0] + node.parent.calculated_offset[0];
+                node.calculated_position[1] = node.parent.calculated_position[1] - node.parent.calculated_offset[1];
+                node.calculated_position[2] = node.parent.calculated_position[2];
+
+            }else
+            {
+                // Calculate the position along the axis vectors of the camera plane.
+                node.calculated_position[0] = parseFloat(this.camera_origin.x.toFixed(3));
+                node.calculated_position[1] = -parseFloat(this.camera_origin.y.toFixed(3));
+                node.calculated_position[2] = parseFloat(this.camera_origin.z.toFixed(3));
+            }
+
+        }else if (node.positioning == "absolute")
         {
-            parent_container = this.standard_bounding;
-            // Use the standard bounding container.
-        }
+            
+            let parent_container = this.standard_bounding;
 
-
-        // If the parent does not exist use the standard bounding container for position.
-        if( node.parent != undefined )
-        {
-            //console.log(node.parent.calculated_offset);
-            // Unpack the parents calculated bounding container.
-            node.calculated_position[0] = node.parent.calculated_position[0] + node.parent.calculated_offset[0];
-            node.calculated_position[1] = node.parent.calculated_position[1] - node.parent.calculated_offset[1];
-            node.calculated_position[2] = node.parent.calculated_position[2];
-
-        }else
-        {
             // Calculate the position along the axis vectors of the camera plane.
             node.calculated_position[0] = parseFloat(this.camera_origin.x.toFixed(3));
             node.calculated_position[1] = -parseFloat(this.camera_origin.y.toFixed(3));
             node.calculated_position[2] = parseFloat(this.camera_origin.z.toFixed(3));
+
+
+            // View management based on positioning
+            if (node.view == "center")
+            {
+
+                let half_right = this.camera_right.clone().multiplyScalar(0.5);
+                let width_right = this.camera_right.clone().multiplyScalar(node.calculated_width);
+                let half_up = this.camera_up.clone().multiplyScalar(0.5);
+
+                let pos_origin = new THREE.Vector3(parseFloat(this.camera_origin.x.toFixed(3)), -parseFloat(this.camera_origin.y.toFixed(3)), parseFloat(this.camera_origin.z.toFixed(3)));
+
+                let mostly = pos_origin.add(half_right).sub(half_up);
+
+                node.calculated_position[0] = mostly.x;
+                node.calculated_position[1] = mostly.y;
+                node.calculated_position[2] = mostly.z;
+            }
+
         }
+
+
+        
+
+        this.update_z_position(node);
+
     }
 
     update_dimension(node)
@@ -371,12 +478,17 @@ export class FUIDoc
             // {
             //     node.calculated_offset[0] += node.width;
             // }
+            
+            
 
         }else
         {
             
-
-            if ( node.display == "block" )
+            if (node.positioning == "absolute")
+            {
+                console.log("hello");
+            }
+            else if ( node.display == "block" )
             {
                 node.parent.calculated_offset[0] = 0;
                 node.parent.calculated_offset[1] += node.calculated_height;
@@ -649,17 +761,9 @@ export class FUIDoc
         return build_info;
     }
 
-    // Used for rendering standard grid
-    render_fui_grid_dfs ( node, preset = true )
+    //Fui Grid positioning functions
+    default_fui_grid_positioning(node)
     {
-
-        this.clear_offsets( node );
-
-        if ( preset == false )
-        {
-            //console.log(" preset: " ,  node.calculated_offset[0], node.calculated_offset[1]);
-        }
-
         // Copy the parent position.
         let parent_position = new THREE.Vector3( node.parent.calculated_position[0], node.parent.calculated_position[1], node.parent.calculated_position[2] );
 
@@ -679,6 +783,47 @@ export class FUIDoc
         // Save the calculated_width and height.
         node.calculated_width = estimated_remaining_width;
         node.calculated_height = estimated_remaining_height;
+    }
+
+    abs_parent_grid_positoning(node)
+    {
+        // Copy the parent position.
+        let parent_position = new THREE.Vector3( node.parent.calculated_position[0], node.parent.calculated_position[1], node.parent.calculated_position[2] );
+
+        let offset_vector = this.camera_right.clone().normalize().multiplyScalar( node.parent.calculated_offset[0] ).add ( this.camera_up.clone().normalize().multiplyScalar(-node.parent.calculated_offset[1]*1.2));
+
+
+
+        node.calculated_position[0] = parent_position.x;
+        node.calculated_position[1] = parent_position.y;
+        node.calculated_position[2] = parent_position.z;
+
+        // Estimate the calculated height and width.
+        let estimated_remaining_height = node.parent.calculated_height - node.parent.calculated_offset[0];
+        let estimated_remaining_width = node.parent.calculated_width - node.parent.calculated_offset[1];
+
+        // Save the calculated_width and height.
+        node.calculated_width = estimated_remaining_width;
+        node.calculated_height = estimated_remaining_height;
+    }
+
+    // Used for rendering standard grid
+    render_fui_grid_dfs ( node, preset = true )
+    {
+
+        this.clear_offsets( node );
+
+        if ( preset == false )
+        {
+            //console.log(" preset: " ,  node.calculated_offset[0], node.calculated_offset[1]);
+        }
+
+        if (node.parent.positioning == "absolute")
+        {
+            this.abs_parent_grid_positoning(node);
+        }else {
+            this.default_fui_grid_positioning(node);
+        }
 
         // Update the bounding container of the node
         this.update_dimension( node );
@@ -686,7 +831,7 @@ export class FUIDoc
         // Get the column and row count.
         let column_count = node.grid_columns.length;
 
-        console.log("column:count ", column_count );
+        //console.log("column:count ", column_count );
 
         let row_count = node.grid_rows.length;
 
@@ -699,8 +844,8 @@ export class FUIDoc
             let current_column = c % column_count;
             let current_row = Math.floor ( c / column_count );
 
-            console.log( "col", current_column );
-            console.log( "row", current_row );
+            //console.log( "col", current_column );
+            //console.log( "row", current_row );
 
             // Find the current column width
             let united_column_width = this.parse_united_value( node.grid_columns[current_column], this.camera_right.length() );
@@ -747,7 +892,7 @@ export class FUIDoc
                 //build_info[1] = Math.max ( child_build_info[1], build_info[1] );
 
                 // Work around
-                build_info[2] = Math.max ( child_build_info[2] - united_row_height, build_info[2] - united_row_height );
+                //build_info[2] = Math.max ( child_build_info[2] - united_row_height, build_info[2] - united_row_height );
             }
 
             
@@ -925,6 +1070,7 @@ export class FUIDoc
 
     }
 
+
     render_fui_tree_dfs(node)
     {
         this.clear_offsets ( node );
@@ -948,14 +1094,31 @@ export class FUIDoc
         // Update the padding for prefix
         //this.update_padding_prefix(node);
 
+        if(node.positioning == "absolute")
+        {
+            console.log("before");
+        }
         //Update the position of this node, doesn't really make any sense.
         this.update_position(node);
 
         
         for(let c = 0; c < node.children.length; c++)
         {
+
+            // Get the class of the child.
+            let class_of_child = node.children[c].class;
+
             // Depth first search all children.
-            let child_build_info = this.render_fui_tree_dfs( node.children[c] );
+            let child_build_info;
+
+            if (this.class_node_handlers[class_of_child] != undefined)
+            {
+                child_build_info =  this.class_node_handlers[class_of_child]( root.children[c] );
+
+            }else {
+                child_build_info = this.render_fui_tree_dfs( node.children[c] );
+            }
+
 
             build_info[0] = Math.max ( child_build_info[0], build_info[0] );
             build_info[1] = Math.max ( child_build_info[1], build_info[1] );
@@ -988,6 +1151,8 @@ export class FUIDoc
         {
             this.update_offset(node, build_info);
         }
+
+
         
         // Render the text content
         this.render_text(node);
@@ -1035,7 +1200,13 @@ export class FUIDoc
 
             let build_info =  this.class_node_handlers[class_of_child]( root.children[c] );
             
-            root.calculated_offset[1] += build_info[2];
+            if (root.children[c].positioning == "absolute")
+            {
+
+            }else{
+
+                root.calculated_offset[1] += build_info[2];
+            }
             //console.log( root.calculated_offset[1], build_info );
         }
 
@@ -1410,6 +1581,8 @@ export class FUIParser
             "id" : this.expand_id.bind(this),
             "col" : this.expand_col.bind(this),
             "row" : this.expand_row.bind(this),
+            "position" : this.expand_position.bind(this),
+            "view" : this.expand_view.bind(this) 
         };
 
         // Store the class denoters
@@ -1713,6 +1886,15 @@ export class FUIParser
     expand_id(value)
     {
         this.current_assemble_node.id = value;
+    }
+    expand_position(value)
+    {
+        
+        this.current_assemble_node.positioning = value[0];
+    }
+    expand_view(value)
+    {
+        this.current_assemble_node.view = value[0];
     }
 
     parse_ui(ui_string, id_map_reference)

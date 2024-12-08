@@ -117,8 +117,8 @@ function OriginalThree ()
             cube2.position.set(20,0,0);
 
             //scene.add( new THREE.Mesh( new OpenCylinder(), new THREE.MeshBasicMaterial({color: 0xfffffff}) ) );
-            //scene.add ( mesh );
-            //scene.add(cube);
+            
+    
             //scene.add(cube2);
 
             //scene context
@@ -127,18 +127,23 @@ function OriginalThree ()
             context.camera = camera;
 
             context.lights = new LightsTexture();
-            context.lights.add_sun_light( new THREE.Vector3(0,100,0), new THREE.Vector3(1,1,1) );
-
+            context.lights.add_sun_light( new THREE.Vector3(0,100,0), new THREE.Vector3(1,1,1), new THREE.Vector3(1,1,1), new THREE.Vector3(1,1,1), "sun");
+            //context.lights.add_light(new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,1), new THREE.Vector3(1,1,1), new THREE.Vector3(1,1,1), "sun");
+            
             let fui_doc = new FUIDoc(context);
 
             let doc = fui_doc.parse(`
 
-                < grid col=[80%, 50%] row=[100%] >
+
+                < position = 'absolute' view='center' > f_n = f_{n-2} + f_{n+1} </>
+                < grid col=[80%, 50%] row=[40%, 50%] >
 
                     < plot id = 'plot' >
                     </>
 
-                    <> f_n = f_{n-2} + f_{n+1} </>
+                    
+                    < texture >
+                    </>
 
                     
                 </>
@@ -146,51 +151,32 @@ function OriginalThree ()
             `);
 
 
+            //context.animate(lights, )
+            doc.plot0.add_point(new THREE.Vector3(0,0,0), 1);
 
-            context.animate.opacity ( doc.eq0, 1, 0, 1 );
             
 
-            doc.plot0.infinity_plane();
+            //context.animate.opacity ( doc.eq0.lhs, 1, 0, 1 );
+            //context.animate.opacity ( doc.eq0.rhs, 1, 0, 1 );
+        
+            //context.animate.position (context.lights, 1, new THREE.Vector3(0,22,0), new THREE.Vector3(10,22,0), "sun");
 
+            
 
+            let plane = doc.plot0.infinity_plane();
 
+            //context.animate.opacity(plane, 1, 0, 1);
+
+            //context.animate.opacity (plane, 1, 0, 1);            
+
+            //context.animate.opacity(plane, 1, 0, 1);
 
             let fib_map = new FibbonaciMap ( context, doc.plot0.scene );
 
+            
             context.animate.custom ( [fib_map.geometry_mesh.material.uniforms.primitive_cap], 4, 0, 1000, "true");
 
-
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            doc.tex0.set_texture( fib_map.renderTarget );
 
             //context.animate.execute( fui_doc.change_text.bind(fui_doc), {node: doc.el1, text: "hello" } );
             //context.animate.execute( fui_doc.rerender.bind(fui_doc), doc.root );

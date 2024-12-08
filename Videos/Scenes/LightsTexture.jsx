@@ -3,75 +3,79 @@ import TextureVector from './TextureVector';
 
 import * as THREE from 'three';
 
-export default class LightsTexture {
+export default class LightsTexture extends TextureVector{
 
     constructor ( )
     {
 
+
+        super(20);
         // Create a texture vector
-        this.texture_vector = new TextureVector(  20  );
+
         
         // Position, color, ambient, diffuse, specular
 
     }
 
-    add_light ( location = new THREE.Vector3(0,0,0), diffuse = new THREE.Vector3(1,1,1), ambient = new THREE.Vector3(0,0,0), specular = new THREE.Vector3(1,1,1) )
+    add_light ( location = new THREE.Vector3(0,0,0), diffuse = new THREE.Vector3(1,1,1), ambient = new THREE.Vector3(0,0,0), specular = new THREE.Vector3(1,1,1), name = undefined )
     {
-        this.texture_vector.push ( location.x );
-        this.texture_vector.push ( location.y );
-        this.texture_vector.push ( location.z );
-        this.texture_vector.push ( 1.0 );
 
-        this.texture_vector.push ( diffuse.x );
-        this.texture_vector.push ( diffuse.y );
-        this.texture_vector.push ( diffuse.z );
-        this.texture_vector.push ( 1.0 );
+        //solution wastes stack space but maybe  optimizie out
+        this.push ( location.x, name );
+        this.push ( location.y, name  );
+        this.push ( location.z, name  );
+        this.push ( 1.0, name  );
 
-        this.texture_vector.push ( ambient.x );
-        this.texture_vector.push ( ambient.y );
-        this.texture_vector.push ( ambient.z );
-        this.texture_vector.push ( 1.0 );
+        this.push ( diffuse.x, name  );
+        this.push ( diffuse.y, name  );
+        this.push ( diffuse.z, name  );
+        this.push ( 1.0, name  );
 
-        this.texture_vector.push ( specular.x );
-        this.texture_vector.push ( specular.y );
-        this.texture_vector.push ( specular.z );
-        this.texture_vector.push ( 1.0 );
+        this.push ( ambient.x, name  );
+        this.push ( ambient.y, name  );
+        this.push ( ambient.z, name  );
+        this.push ( 1.0, name  );
+
+        this.push ( specular.x, name  );
+        this.push ( specular.y, name  );
+        this.push ( specular.z, name  );
+        this.push ( 1.0, name  );
 
         // Store a vector here to determine the light type
-        this.texture_vector.push ( 1 );
-        this.texture_vector.push ( 0 );
-        this.texture_vector.push ( 0 );
-        this.texture_vector.push ( 1 );
+        this.push ( 1, name  );
+        this.push ( 0, name  );
+        this.push ( 0, name  );
+        this.push ( 1, name  );
 
     }
 
-    add_sun_light ( location = new THREE.Vector3(0,0,0), diffuse = new THREE.Vector3(1,1,1), ambient = new THREE.Vector3(0,0,0), specular = new THREE.Vector3(1,1,1) )
+    add_sun_light ( location = new THREE.Vector3(0,0,0), diffuse = new THREE.Vector3(1,1,1), ambient = new THREE.Vector3(0,0,0), specular = new THREE.Vector3(1,1,1), name = undefined )
     {
-        this.texture_vector.push ( location.x );
-        this.texture_vector.push ( location.y );
-        this.texture_vector.push ( location.z );
-        this.texture_vector.push ( 1.0 );
+        this.push ( location.x, name );
+        this.push ( location.y ,name);
+        this.push ( location.z ,name);
+        this.push ( 1.0 ,name);
 
-        this.texture_vector.push ( diffuse.x );
-        this.texture_vector.push ( diffuse.y );
-        this.texture_vector.push ( diffuse.z );
-        this.texture_vector.push ( 1.0 );
+        this.push ( diffuse.x ,name);
+        this.push ( diffuse.y ,name);
+        this.push ( diffuse.z ,name);
+        this.push ( 1.0 ,name);
 
-        this.texture_vector.push ( ambient.x );
-        this.texture_vector.push ( ambient.y );
-        this.texture_vector.push ( ambient.z );
-        this.texture_vector.push ( 1.0 );
+        this.push ( ambient.x ,name);
+        this.push ( ambient.y ,name);
+        this.push ( ambient.z ,name);
+        this.push ( 1.0 ,name);
 
-        this.texture_vector.push ( specular.x );
-        this.texture_vector.push ( specular.y );
-        this.texture_vector.push ( specular.z );
-        this.texture_vector.push ( 1.0 );
+        this.push ( specular.x ,name);
+        this.push ( specular.y ,name);
+        this.push ( specular.z ,name);
+        this.push ( 1.0 ,name);
 
         // Store a vector here to determine the light type
-        this.texture_vector.push ( 0 );
-        this.texture_vector.push ( 0 );
-        this.texture_vector.push ( 0 );
-        this.texture_vector.push ( 1 );
+        this.push ( 0 ,name);
+        this.push ( 0 ,name);
+        this.push ( 0 ,name);
+        this.push ( 1 ,name);
     }
 
     struct_size ( )
@@ -85,17 +89,27 @@ export default class LightsTexture {
     {
 
         
-        return this.texture_vector.structure_tail;
+        return this.structure_tail;
     }
 
     texture ( )
     {
-        return this.texture_vector.texture;
+        return this.texture_data;
     }
 
     dimension ( )
     {
-        return this.texture_vector.texture_dimension;
+        return this.texture_dimension;
+    }
+
+    update_position(position, index)
+    {
+        
+
+        this.formatted_update(position, index, 0, 4);
     }
 
 };
+
+
+
